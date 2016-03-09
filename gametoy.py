@@ -11,7 +11,8 @@ def run(path):
 
         header = Header(rom)
         print(header.name)
-        emulator.run(rom)
+        emu = emulator.Emulator(rom, header)
+        emu.run()
 
 class Header:
     def __init__(self, rom):
