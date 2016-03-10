@@ -1,6 +1,7 @@
 class Emulator:
     def __init__(self, rom, header):
         self.rom    = rom
+        self.ram    = [0 for i in range(0xFFFF)] # Quick hack
         self.header = header
         self.clocks = 0
 
@@ -15,11 +16,12 @@ class Emulator:
         self.af     = RegisterWord(self.a, self.f)
         self.bc     = RegisterWord(self.b, self.c)
         self.de     = RegisterWord(self.d, self.e)
+        self.hl     = RegisterWord(self.h, self.l)
         self.pc     = RegisterWord.fromValue(0x100)
         self.sp     = RegisterWord.fromValue(0x0)
 
         self.op_table = {
-            0x00: lambda: self.nop(),
+            0x00: self.nop,
             
             0x7F: lambda: self.ld_rr(self.a, self.a),
             0x78: lambda: self.ld_rr(self.a, self.b),
@@ -28,10 +30,10 @@ class Emulator:
             0x7B: lambda: self.ld_rr(self.a, self.e),
             0x7C: lambda: self.ld_rr(self.a, self.h),
             0x7D: lambda: self.ld_rr(self.a, self.l),
-            0x7E: lambda: self.ld_rX(self.a, self.hl()),
-            0x0A: lambda: self.ld_rX(self.a, self.bc()),
-            0x1A: lambda: self.ld_rX(self.a, self.de()),
-            0x3A: lambda: self.ld_rW(self.a, self.getOperationWord()),
+            0x7E: lambda: self.ld_rX(self.a, self.hl),
+            0x0A: lambda: self.ld_rX(self.a, self.bc),
+            0x1A: lambda: self.ld_rX(self.a, self.de),
+            0x3A: lambda: self.ld_rW(self.a),
 
             0x47: lambda: self.ld_rr(self.b, self.a),
             0x40: lambda: self.ld_rr(self.b, self.b),
@@ -40,7 +42,7 @@ class Emulator:
             0x43: lambda: self.ld_rr(self.b, self.e),
             0x44: lambda: self.ld_rr(self.b, self.h),
             0x45: lambda: self.ld_rr(self.b, self.l),
-            0x46: lambda: self.ld_rW(self.b, self.getOperationWord()),
+            0x46: lambda: self.ld_rX(self.b, self.hl),
 
             0x4F: lambda: self.ld_rr(self.c, self.a),
             0x48: lambda: self.ld_rr(self.c, self.b),
@@ -49,9 +51,59 @@ class Emulator:
             0x4B: lambda: self.ld_rr(self.c, self.e),
             0x4C: lambda: self.ld_rr(self.c, self.h),
             0x4D: lambda: self.ld_rr(self.c, self.l),
-            0x4E: lambda: self.ld_rW(self.c),
+            0x4E: lambda: self.ld_rX(self.c, self.hl),
 
-            0x01: lambda: self.ld_xw(self.bc),
+            0x57: lambda: self.ld_rr(self.d, self.a),
+            0x50: lambda: self.ld_rr(self.d, self.b),
+            0x51: lambda: self.ld_rr(self.d, self.c),
+            0x52: lambda: self.ld_rr(self.d, self.d),
+            0x53: lambda: self.ld_rr(self.d, self.e),
+            0x54: lambda: self.ld_rr(self.d, self.h),
+            0x55: lambda: self.ld_rr(self.d, self.l),
+            0x56: lambda: self.ld_rX(self.d, self.hl),
+
+            0x5F: lambda: self.ld_rr(self.e, self.a),
+            0x58: lambda: self.ld_rr(self.e, self.b),
+            0x59: lambda: self.ld_rr(self.e, self.c),
+            0x5A: lambda: self.ld_rr(self.e, self.d),
+            0x5B: lambda: self.ld_rr(self.e, self.e),
+            0x5C: lambda: self.ld_rr(self.e, self.h),
+            0x5D: lambda: self.ld_rr(self.e, self.l),
+            0x5E: lambda: self.ld_rX(self.e, self.hl),
+
+            0x67: lambda: self.ld_rr(self.h, self.a),
+            0x60: lambda: self.ld_rr(self.h, self.b),
+            0x61: lambda: self.ld_rr(self.h, self.c),
+            0x62: lambda: self.ld_rr(self.h, self.d),
+            0x63: lambda: self.ld_rr(self.h, self.e),
+            0x64: lambda: self.ld_rr(self.h, self.h),
+            0x65: lambda: self.ld_rr(self.h, self.l),
+            0x66: lambda: self.ld_rX(self.h, self.hl),
+
+            0x6F: lambda: self.ld_rr(self.l, self.a),
+            0x68: lambda: self.ld_rr(self.l, self.b),
+            0x69: lambda: self.ld_rr(self.l, self.c),
+            0x6A: lambda: self.ld_rr(self.l, self.d),
+            0x6B: lambda: self.ld_rr(self.l, self.e),
+            0x6C: lambda: self.ld_rr(self.l, self.h),
+            0x6D: lambda: self.ld_rr(self.l, self.l),
+            0x6E: lambda: self.ld_rX(self.l, self.hl),
+
+            0x77: lambda: self.ld_Xr(self.hl, self.a),
+            0x70: lambda: self.ld_Xr(self.hl, self.b),
+            0x71: lambda: self.ld_Xr(self.hl, self.c),
+            0x72: lambda: self.ld_Xr(self.hl, self.d),
+            0x73: lambda: self.ld_Xr(self.hl, self.e),
+            0x74: lambda: self.ld_Xr(self.hl, self.h),
+            0x75: lambda: self.ld_Xr(self.hl, self.l),
+
+            0x3E: lambda: self.ld_rb(self.a),
+            0x06: lambda: self.ld_rb(self.b),
+            0x0E: lambda: self.ld_rb(self.c),
+            0x16: lambda: self.ld_rb(self.d),
+            0x1E: lambda: self.ld_rb(self.e),
+            0x26: lambda: self.ld_rb(self.h),
+            0x2E: lambda: self.ld_rb(self.l),
 
             0xC3: lambda: self.jp(self.getOperationWord())
         }
@@ -73,8 +125,22 @@ class Emulator:
         assert(value <= 0xFFFF)
         return value
 
-    def getMemory(self, i):
-        return self.rom[i] #TODO
+    def getOperationByte(self):
+        value = self.getMemory(int(self.pc)+1)
+        assert(value <= 0xFF)
+        return value
+
+    def getMemory(self, location):
+        if location < 0x4000:
+            return self.rom[location]
+        else:
+            return self.ram[location - 0x4000]
+
+    def setMemory(self, location, value):
+        if location < 0x4000:
+            assert(False)
+        else:
+            self.ram[location - 0x4000] = value
 
     # Op codes operand key:
     #   r - register
@@ -97,15 +163,30 @@ class Emulator:
     def ld_rW(self, r):
         r.set(self.getMemory(self.getOperationWord()))
         self.pc += 3
-        #self.clocks = TODO
+        #self.clocks += TODO
 
-    def ld_xw(self, r):
-        r.set(self.getOperationWord())
+    def ld_rX(self, r, X):
+        r.set(self.getMemory(int(X)))
+        self.pc += 1
+        #self.clocks += TODO
+
+    def ld_rb(self, r):
+        r.set(self.getOperationByte())
+        self.pc += 2
+        #self.clocks += TODO
+
+    def ld_Xr(self, X, r):
+        self.setMemory(int(X), int(r))
+        self.pc += 1
+        #self.clocks += TODO
+
+    def ld_xw(self, x):
+        x.set(self.getOperationWord())
         self.pc += 3
-        #self.clocks = TODO
+        #self.clocks += TODO
 
-    def jp(self, nn):
-        self.pc.set(nn)
+    def jp(self, w):
+        self.pc.set(w)
         self.clocks += 16
 
 class RegisterByte:
