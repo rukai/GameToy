@@ -1,28 +1,32 @@
+import registers
+
 class Emulator:
     def __init__(self, rom, header):
         self.rom    = rom
         self.ram    = [0 for i in range(0xFFFF)] # Quick hack
         self.header = header
-        self.clocks = 0
+        self.cycles = 0 # machine cycles
+        self.opDesc = "" # Stores a human readable string of the current operation for debugging
 
-        self.a      = RegisterByte(0x0)
-        self.f      = RegisterByte(0x0)
-        self.b      = RegisterByte(0x0)
-        self.c      = RegisterByte(0x0)
-        self.d      = RegisterByte(0x0)
-        self.e      = RegisterByte(0x0)
-        self.h      = RegisterByte(0x0)
-        self.l      = RegisterByte(0x0)
-        self.af     = RegisterWord(self.a, self.f)
-        self.bc     = RegisterWord(self.b, self.c)
-        self.de     = RegisterWord(self.d, self.e)
-        self.hl     = RegisterWord(self.h, self.l)
-        self.pc     = RegisterWord.fromValue(0x100)
-        self.sp     = RegisterWord.fromValue(0x0)
+        self.a      = registers.RegisterByte(0x0, 'A')
+        self.f      = registers.RegisterByte(0x0, 'F')
+        self.b      = registers.RegisterByte(0x0, 'B')
+        self.c      = registers.RegisterByte(0x0, 'C')
+        self.d      = registers.RegisterByte(0x0, 'D')
+        self.e      = registers.RegisterByte(0x0, 'E')
+        self.h      = registers.RegisterByte(0x0, 'H')
+        self.l      = registers.RegisterByte(0x0, 'L')
+        self.af     = registers.RegisterWord(self.a, self.f, 'AF')
+        self.bc     = registers.RegisterWord(self.b, self.c, 'BC')
+        self.de     = registers.RegisterWord(self.d, self.e, 'DE')
+        self.hl     = registers.RegisterWord(self.h, self.l, 'HL')
+        self.pc     = registers.RegisterWord.fromValue(0x100, 'PC')
+        self.sp     = registers.RegisterWord.fromValue(0x0, 'SP')
 
         self.op_table = {
             0x00: self.nop,
             
+            # Loads
             0x7F: lambda: self.ld_rr(self.a, self.a),
             0x78: lambda: self.ld_rr(self.a, self.b),
             0x79: lambda: self.ld_rr(self.a, self.c),
@@ -104,21 +108,52 @@ class Emulator:
             0x1E: lambda: self.ld_rb(self.e),
             0x26: lambda: self.ld_rb(self.h),
             0x2E: lambda: self.ld_rb(self.l),
+            
+            0x36: lambda: self.ld_Xb(self.hl),
+            0x02: lambda: self.ld_Xr(self.bc, self.a),
+            0x12: lambda: self.ld_Xr(self.de, self.a),
+            0x32: lambda: self.ld_Wr(self.a),
 
-            0xC3: lambda: self.jp(self.getOperationWord())
+            0x01: lambda: self.ld_xw(self.bc),
+            0x11: lambda: self.ld_xw(self.de),
+            0x21: lambda: self.ld_xw(self.hl),
+            0x31: lambda: self.ld_xw(self.sp),
+            0xF9: lambda: self.ld_xx(self.sp, self.hl),
+
+            # Jumps
+            0xC3: self.jp_w,
+            0xE9: lambda: self.jp_X(self.hl),
+
+            # ALU
+            0xAF: lambda: self.xor_r(self.a),
+            0xA8: lambda: self.xor_r(self.b),
+            0xA9: lambda: self.xor_r(self.c),
+            0xAA: lambda: self.xor_r(self.d),
+            0xAB: lambda: self.xor_r(self.e),
+            0xAC: lambda: self.xor_r(self.h),
+            0xAD: lambda: self.xor_r(self.l),
+            0xAE: lambda: self.xor_X(self.hl),
+            0xEE: self.xor_b,
+
         }
 
     def run(self):
-        loop = True
-        while loop:
+        print("\nPC: Operation")
+        while True:
+            
+            self.opDesc = ""
             instruction = self.getMemory(int(self.pc))
-            print(hex(int(self.pc)), hex(instruction))
-        
+            
             if instruction in self.op_table:
                 self.op_table[instruction]()
             else:
-                print("Instruction not implemented! AAAAGH!! ... I'm dead ...")
-                loop = False
+                print("Instruction " + hex(instruction) + " not implemented! AAAAGH!! ... I'm dead ...")
+                break
+
+            if self.opDesc:
+                print(self.opDesc)
+            else:
+                print(hex(int(self.pc)), "Forgot opDesc for:", hex(instruction))
 
     def getOperationWord(self):
         value = self.getMemory(int(self.pc)+1) + (self.getMemory(int(self.pc)+2) << 8)
@@ -138,9 +173,16 @@ class Emulator:
 
     def setMemory(self, location, value):
         if location < 0x4000:
-            assert(False)
+            pass#assert(False)
         else:
             self.ram[location - 0x4000] = value
+    
+    def setOpDesc(self, name, arg1="", arg2=""):
+        self.opDesc = "{}: {}".format(hex(int(self.pc)), name)
+        if arg1:
+            self.opDesc += " " + arg1
+        if arg2:
+            self.opDesc += ", " + arg2
 
     # Op codes operand key:
     #   r - register
@@ -152,124 +194,109 @@ class Emulator:
     # These are used to keep the op_table clean and aligned
 
     def nop(self):
+        self.setOpDesc("NOP")
         self.pc += 1
-        self.clocks += 1
+        self.cycles += 1
 
+    # Loads
     def ld_rr(self, r1, r2):
+        self.setOpDesc("LD", r1.getName(), r2.getName())
         r1.set(int(r2))
         self.pc += 1
-        self.clocks += 4
+        self.cycles += 1
 
     def ld_rW(self, r):
-        r.set(self.getMemory(self.getOperationWord()))
+        W = self.getOperationWord()
+        self.setOpDesc("LD", r.getName(), "({})".format(asmHex(W)))
+        r.set(self.getMemory(W))
         self.pc += 3
-        #self.clocks += TODO
+        self.cycles += 4
 
     def ld_rX(self, r, X):
+        self.setOpDesc("LD", r.getName(), "({})".format(X.getName()))
         r.set(self.getMemory(int(X)))
         self.pc += 1
-        #self.clocks += TODO
+        self.cycles += 2
 
     def ld_rb(self, r):
-        r.set(self.getOperationByte())
+        b = self.getOperationByte()
+        self.setOpDesc("LD", r.getName(), asmHex(b))
+        r.set(b)
         self.pc += 2
-        #self.clocks += TODO
+        self.cycles += 2
+
+    def ld_Xb(self, X):
+        b = self.getOperationByte()
+        self.setOpDesc("LD", "({})".format(X.getName()), asmHex(b))
+        self.setMemory(int(X), b)
+        self.pc += 2
+        self.cycles += 3
 
     def ld_Xr(self, X, r):
+        self.setOpDesc("LD",  "({})".format(X.getName()), r.getName())
         self.setMemory(int(X), int(r))
         self.pc += 1
-        #self.clocks += TODO
+        self.cycles += 2
 
     def ld_xw(self, x):
-        x.set(self.getOperationWord())
+        w = self.getOperationWord()
+        self.setOpDesc("LD", x.getName(), asmHex(w))
+        x.set(w)
         self.pc += 3
-        #self.clocks += TODO
+        self.cycles += 3
 
-    def jp(self, w):
+    def ld_xx(self, x1, x2):
+        self.setOpDesc("LD", x1.getName(), x2.getName())
+        x1.set(int(x2))
+        self.pc += 1
+        self.cycles += 2
+
+    def ld_Wr(self, r):
+        W = self.getOperationWord()
+        self.setOpDesc("LD", "({})".format(asmHex(W)), r.getName())
+        self.setMemory(W, int(r))
+        self.pc += 3
+        self.cycles += 4
+
+    # Jumps
+    def jp_w(self):
+        w = self.getOperationWord()
+        self.setOpDesc("JP", format(asmHex(w)))
         self.pc.set(w)
-        self.clocks += 16
+        self.cycles += 3
 
-class RegisterByte:
-    def __init__(self, value):
-        assert(value <= 0xFF)
-        self.value = int(value)
+    def jp_X(self, X):
+        self.setOpDesc("JP", X.getName())
+        self.pc.set(self.getMemory(int(x)))
+        self.cycles += 1
 
-    def set(self, value):
-        assert(value <= 0xFF)
-        self.value = int(value)
+    # ALU
+    def xor_r(self, r):
+        self.setOpDesc("XOR", r.getName())
+        xor = int(self.a) ^ int(r)
+        self.a.set(xor)
+        self.pc += 1
+        self.cycles += 1
 
-    def __add__(self, value):
-        if type(value) == RegisterByte:
-            return RegisterByte(self.value + int(value))
-        return self.value + value
+    def xor_X(self, X):
+        self.setOpDesc("XOR", X.getName())
+        xor = int(self.a) ^ self.getMemory(int(X))
+        self.a.set(xor)
+        self.pc += 1
+        self.cycles += 2
 
-    def __iadd__(self, value):
-        self.value += value
-        assert(value <= 0xFF)
-        return self
-
-    def __eq__(self, value):
-        return self.value == value
-
-    def __int__(self):
-        return self.value
-    
-    def __str__(self):
-        return str(self.value)
-
-    def __repr__(self):
-        return 'RegisterByte(' + hex(self.value) + ')'
-
-class RegisterWord:
-    def __init__(self, r1, r2):
-        self.r1 = r1 # Most significant
-        self.r2 = r2 # Least significant
-
-    @classmethod
-    def fromValue(cls, value):
-        """
-        >>> RegisterWord.fromValue(0x0)
-        RegisterWord(0x0)
-        >>> RegisterWord.fromValue(0xf)
-        RegisterWord(0xf)
-        >>> RegisterWord.fromValue(0xf).r2
-        RegisterByte(0xf)
-        >>> RegisterWord.fromValue(0xff)
-        RegisterWord(0xff)
-        >>> RegisterWord.fromValue(0x100)
-        RegisterWord(0x100)
-        >>> print(RegisterWord.fromValue(555))
-        555
-        """
-        register = cls(RegisterByte(0), RegisterByte(0))
-        register.set(value)
-        return register
-
-    def set(self, value):
-        self.r1.set(value >> 8)
-        self.r2.set(value & 0x00FF)
-
-    def __add__(self, value):
-        if type(value) == RegisterWord:
-            return RegisterWord(int(self) + int(value))
-        return int(self) + value
-
-    def __iadd__(self, value):
-        self.set(int(self) + value)
-        return self
-
-    def __int__(self):
-        return (int(self.r1) << 8) + int(self.r2)
-
-    def __eq__(self, value):
-        return int(self) == value
-    
-    def __str__(self):
-        return str(int(self))
-
-    def __repr__(self):
-        return 'RegisterWord(' + hex(int(self)) + ')'
+    def xor_b(self):
+        self.setOpDesc("XOR")
+        xor = int(self.a) ^ self.getOperationByte()
+        self.a.set(xor)
+        self.pc += 2
+        self.cycles += 2
 
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
+# Chuck this in another file
+def asmHex(integer):
+    return '$' + hex(integer)[2:]
+
