@@ -76,6 +76,10 @@ class RegisterWord:
         self.set(int(self) + value)
         return self
 
+    def __isub__(self, value):
+        self.set(int(self) - value)
+        return self
+
     def __int__(self):
         return (int(self.r1) << 8) + int(self.r2)
 

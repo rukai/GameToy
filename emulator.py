@@ -24,7 +24,8 @@ class Emulator:
         self.sp     = registers.RegisterWord.fromValue(0x0, 'SP')
 
         self.op_table = {
-            0x00: self.nop,
+
+            0x00:         self.nop,
             
             # Loads
             0x7F: lambda: self.ld_rr(self.a, self.a),
@@ -112,7 +113,10 @@ class Emulator:
             0x36: lambda: self.ld_Xb(self.hl),
             0x02: lambda: self.ld_Xr(self.bc, self.a),
             0x12: lambda: self.ld_Xr(self.de, self.a),
-            0x32: lambda: self.ld_Wr(self.a),
+            0x3A:         self.ldd_rX,
+            0x32:         self.ldd_Xr,
+            0x2A:         self.ldi_rX,
+            0x22:         self.ldi_Xr,
 
             0x01: lambda: self.ld_xw(self.bc),
             0x11: lambda: self.ld_xw(self.de),
@@ -121,7 +125,7 @@ class Emulator:
             0xF9: lambda: self.ld_xx(self.sp, self.hl),
 
             # Jumps
-            0xC3: self.jp_w,
+            0xC3:         self.jp_w,
             0xE9: lambda: self.jp_X(self.hl),
 
             # ALU
@@ -133,8 +137,7 @@ class Emulator:
             0xAC: lambda: self.xor_r(self.h),
             0xAD: lambda: self.xor_r(self.l),
             0xAE: lambda: self.xor_X(self.hl),
-            0xEE: self.xor_b,
-
+            0xEE:         self.xor_b,
         }
 
     def run(self):
@@ -150,10 +153,8 @@ class Emulator:
                 print("Instruction " + hex(instruction) + " not implemented! AAAAGH!! ... I'm dead ...")
                 break
 
-            if self.opDesc:
-                print(self.opDesc)
-            else:
-                print(hex(int(self.pc)), "Forgot opDesc for:", hex(instruction))
+            if not self.opDesc:
+                print("No opDesc for:", hex(instruction))
 
     def getOperationWord(self):
         value = self.getMemory(int(self.pc)+1) + (self.getMemory(int(self.pc)+2) << 8)
@@ -173,7 +174,8 @@ class Emulator:
 
     def setMemory(self, location, value):
         if location < 0x4000:
-            pass#assert(False)
+            print(hex(location))
+            assert(False)
         else:
             self.ram[location - 0x4000] = value
     
@@ -183,15 +185,20 @@ class Emulator:
             self.opDesc += " " + arg1
         if arg2:
             self.opDesc += ", " + arg2
+        print(self.opDesc)
 
-    # Op codes operand key:
+    # To to keep the op_table aligned and for docuementation purposes
+    # The following are used to refer to operands:
     #   r - register
     #   x - 16 bit register
     #   X - dereferenced 16 bit register
     #   b - byte (8 bit value)
     #   w - word (16 bit value)
     #   W - derefenced word
-    # These are used to keep the op_table clean and aligned
+    #
+    # They are not used to refer to the arguments that the functions
+    # used to emulate the operation take instead they refer to the
+    # operands required for that operation in Assembly.
 
     def nop(self):
         self.setOpDesc("NOP")
@@ -251,12 +258,40 @@ class Emulator:
         self.pc += 1
         self.cycles += 2
 
-    def ld_Wr(self, r):
+    def ld_Wr(self, r): #Currently unused?
         W = self.getOperationWord()
         self.setOpDesc("LD", "({})".format(asmHex(W)), r.getName())
         self.setMemory(W, int(r))
         self.pc += 3
         self.cycles += 4
+
+    def ldd_rX(self):
+        self.setOpDesc("LDD", "A", "({HL})")
+        self.a.set(self.getMemory(int(self.hl)))
+        self.hl -= 1
+        self.pc += 1
+        self.cycles += 2
+
+    def ldd_Xr(self):
+        self.setOpDesc("LDD", "({HL})", "A")
+        self.setMemory(int(self.hl), int(self.a))
+        self.hl -= 1
+        self.pc += 1
+        self.cycles += 2
+
+    def ldi_rX(self):
+        self.setOpDesc("LDI", "A", "({HL})")
+        self.a.set(self.getMemory(int(self.hl)))
+        self.hl += 1
+        self.pc += 1
+        self.cycles += 2
+
+    def ldi_Xr(self):
+        self.setOpDesc("LDI", "({HL})", "A")
+        self.setMemory(int(self.hl), int(self.a))
+        self.hl += 1
+        self.pc += 1
+        self.cycles += 2
 
     # Jumps
     def jp_w(self):
@@ -279,15 +314,16 @@ class Emulator:
         self.cycles += 1
 
     def xor_X(self, X):
-        self.setOpDesc("XOR", X.getName())
+        self.setOpDesc("XOR", "({})".format(X.getName()))
         xor = int(self.a) ^ self.getMemory(int(X))
         self.a.set(xor)
         self.pc += 1
         self.cycles += 2
 
     def xor_b(self):
-        self.setOpDesc("XOR")
-        xor = int(self.a) ^ self.getOperationByte()
+        b = self.getOperationByte()
+        self.setOpDesc("XOR", asmHex(b))
+        xor = int(self.a) ^ b
         self.a.set(xor)
         self.pc += 2
         self.cycles += 2
@@ -299,4 +335,3 @@ if __name__ == '__main__':
 # Chuck this in another file
 def asmHex(integer):
     return '$' + hex(integer)[2:]
-
