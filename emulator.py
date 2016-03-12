@@ -3,13 +3,13 @@ import registers
 class Emulator:
     def __init__(self, rom, header):
         self.rom    = rom
-        self.ram    = [0 for i in range(0xFFFF)] # Quick hack
+        self.ram    = [0 for i in range(0x10000)] # Quick hack
         self.header = header
         self.cycles = 0 # machine cycles
         self.opDesc = "" # Stores a human readable string of the current operation for debugging
 
         self.a      = registers.RegisterByte(0x0, 'A')
-        self.f      = registers.RegisterByte(0x0, 'F')
+        self.f      = registers.RegisterFlag(0x0, 'F')
         self.b      = registers.RegisterByte(0x0, 'B')
         self.c      = registers.RegisterByte(0x0, 'C')
         self.d      = registers.RegisterByte(0x0, 'D')
@@ -128,7 +128,7 @@ class Emulator:
             0xC3:         self.jp_w,
             0xE9: lambda: self.jp_X(self.hl),
 
-            # ALU
+            # 8-bit ALU
             0xAF: lambda: self.xor_r(self.a),
             0xA8: lambda: self.xor_r(self.b),
             0xA9: lambda: self.xor_r(self.c),
@@ -138,6 +138,32 @@ class Emulator:
             0xAD: lambda: self.xor_r(self.l),
             0xAE: lambda: self.xor_X(self.hl),
             0xEE:         self.xor_b,
+
+            0x3C: lambda: self.inc_r(self.a),
+            0x03: lambda: self.inc_r(self.b),
+            0x0C: lambda: self.inc_r(self.c),
+            0x14: lambda: self.inc_r(self.d),
+            0x1C: lambda: self.inc_r(self.e),
+            0x24: lambda: self.inc_r(self.h),
+            0x2C: lambda: self.inc_r(self.l),
+            0x03: lambda: self.inc_x(self.bc),
+            0x13: lambda: self.inc_x(self.bc),
+            0x23: lambda: self.inc_x(self.bc),
+            0x33: lambda: self.inc_x(self.bc),
+            0x34:         self.inc_X,
+
+            0x3D: lambda: self.dec_r(self.a),
+            0x05: lambda: self.dec_r(self.b),
+            0x0D: lambda: self.dec_r(self.c),
+            0x15: lambda: self.dec_r(self.d),
+            0x1D: lambda: self.dec_r(self.e),
+            0x25: lambda: self.dec_r(self.h),
+            0x2D: lambda: self.dec_r(self.l),
+            0x0B: lambda: self.inc_x(self.bc),
+            0x1B: lambda: self.inc_x(self.bc),
+            0x2B: lambda: self.inc_x(self.bc),
+            0x3B: lambda: self.inc_x(self.bc),
+            0x35:         self.dec_X,
         }
 
     def run(self):
@@ -326,6 +352,58 @@ class Emulator:
         xor = int(self.a) ^ b
         self.a.set(xor)
         self.pc += 2
+        self.cycles += 2
+
+    def inc_r(self, r):
+        self.setOpDesc("INC", r.getName())
+        newValue = (int(r) + 1) % 0x100
+        r.set(newValue)
+        self.pc += 1
+        self.cycles += 1
+        self.f.setZero(newValue == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(self.getBit(4))
+
+    def inc_X(self, X):
+        self.setOpDesc("INC", "({})".format(X.getName()))
+        newValue = (self.getMemory(int(X)) + 1) % 0x100
+        self.setmemory(int(X), newValue)
+        self.pc += 1
+        self.cycles += 3
+        self.f.setZero(newValue == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(self.getBit(4))
+
+    def inc_x(self, x):
+        self.setOpDesc("INC", x.getName())
+        x.set((int(x) + 1) % 0x100)
+        self.pc += 1
+        self.cycles += 2
+
+    def dec_r(self, r):
+        self.setOpDesc("DEC", r.getName())
+        newValue = (int(r) - 1) % 0x100
+        r.set(newValue)
+        self.pc += 1
+        self.cycles += 1
+        self.f.setZero(newValue == 0)
+        self.f.setSubtract(True)
+        self.f.setHalfCarry(r.getBit(4)) #hope this is same for subtraction
+
+    def dec_X(self, X):
+        self.setOpDesc("DEC", "({})".format(X.getName()))
+        newValue = (self.getMemory(int(X)) -1) % 0x100
+        self.setmemory(int(X), newValue)
+        self.pc += 1
+        self.cycles += 3
+        self.f.setZero(newValue == 0)
+        self.f.setSubtract(True)
+        self.f.setHalfCarry(bool(newValue & 0b1000))
+
+    def dec_x(self, x):
+        self.setOpDesc("DEC", x.getName())
+        x.set((int(x) - 1) % 0x100)
+        self.pc += 1
         self.cycles += 2
 
 if __name__ == '__main__':
