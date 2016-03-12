@@ -127,8 +127,18 @@ class Emulator:
             # Jumps
             0xC3:         self.jp_w,
             0xE9: lambda: self.jp_X(self.hl),
+            0xC2: lambda: self.jp_fw("NZ"),
+            0xCA: lambda: self.jp_fw("Z"),
+            0xD2: lambda: self.jp_fw("NC"),
+            0xDA: lambda: self.jp_fw("C"),
 
-            # 8-bit ALU
+            0x18:         self.jr_b,
+            0x20: lambda: self.jr_fb("NZ"),
+            0x28: lambda: self.jr_fb("Z"),
+            0x30: lambda: self.jr_fb("NC"),
+            0x38: lambda: self.jr_fb("C"),
+
+            # ALU
             0xAF: lambda: self.xor_r(self.a),
             0xA8: lambda: self.xor_r(self.b),
             0xA9: lambda: self.xor_r(self.c),
@@ -213,6 +223,18 @@ class Emulator:
             self.opDesc += ", " + arg2
         print(self.opDesc)
 
+    def checkFlag(self, flagType):
+        if flagType == "NZ":
+            return not self.f.getZero()
+        elif flagType == "Z":
+            return self.f.getZero()
+        elif flagType == "NC":
+            return not self.f.getCarry()
+        elif flagType == "C":
+            return self.f.getCarry()
+        else:
+            assert(False)
+
     # To to keep the op_table aligned and for docuementation purposes
     # The following are used to refer to operands:
     #   r - register
@@ -221,6 +243,7 @@ class Emulator:
     #   b - byte (8 bit value)
     #   w - word (16 bit value)
     #   W - derefenced word
+    #   f - flag conditional
     #
     # They are not used to refer to the arguments that the functions
     # used to emulate the operation take instead they refer to the
@@ -322,14 +345,38 @@ class Emulator:
     # Jumps
     def jp_w(self):
         w = self.getOperationWord()
-        self.setOpDesc("JP", format(asmHex(w)))
+        self.setOpDesc("JP", asmHex(w))
         self.pc.set(w)
         self.cycles += 3
 
     def jp_X(self, X):
-        self.setOpDesc("JP", X.getName())
+        self.setOpDesc("JP", "({})".format(X.getName()))
         self.pc.set(self.getMemory(int(x)))
         self.cycles += 1
+
+    def jp_fw(self, f):
+        w = self.getOperationWord()
+        self.setOpDesc("JP", f, asmHex(w))
+        if self.checkFlag(f):
+            self.pc.set(w)
+        else:
+            self.pc += 3
+        self.cycles += 3
+
+    def jr_b(self):
+        b = self.getOperationByte()
+        self.setOpDesc("JR", asmHex(b))
+        self.pc += b
+        self.cycles += 2
+
+    def jr_fb(self, f):
+        b = self.getOperationByte()
+        self.setOpDesc("JR", f, asmHex(b))
+        if self.checkFlag(f):
+            self.pc += b
+        else:
+            self.pc += 2
+        self.cycles += 2
 
     # ALU
     def xor_r(self, r):
