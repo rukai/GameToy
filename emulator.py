@@ -5,8 +5,9 @@ class Emulator:
         self.rom    = rom
         self.ram    = [0 for i in range(0x10000)] # Quick hack
         self.header = header
+        self.running = True
         self.cycles = 0 # machine cycles
-        self.opDesc = "" # Stores a human readable string of the current operation for debugging
+        self.op_desc = "" # Stores a human readable string of the current operation for debugging
 
         self.a      = registers.RegisterByte(0x0, 'A')
         self.f      = registers.RegisterFlag(0x0, 'F')
@@ -174,30 +175,91 @@ class Emulator:
             0x2B: lambda: self.inc_x(self.bc),
             0x3B: lambda: self.inc_x(self.bc),
             0x35:         self.dec_X,
+
+            # Rotate and Shift
+            0x07:         self.rlca,
+            0x0F:         self.rrca,
+            0x17:         self.rla,
+            0x1F:         self.rra,
+            0xCB:         self.cb_prefix,
         }
+
+        self.cb_op_table = {
+            # Rotate
+            0x07: lambda: self.rlc_r(self.a),
+            0x00: lambda: self.rlc_r(self.b),
+            0x01: lambda: self.rlc_r(self.c),
+            0x02: lambda: self.rlc_r(self.d),
+            0x03: lambda: self.rlc_r(self.e),
+            0x04: lambda: self.rlc_r(self.h),
+            0x05: lambda: self.rlc_r(self.l),
+            0x06:         self.rlc_X,
+
+            0x17: lambda: self.rl_r(self.a),
+            0x10: lambda: self.rl_r(self.b),
+            0x11: lambda: self.rl_r(self.c),
+            0x12: lambda: self.rl_r(self.d),
+            0x13: lambda: self.rl_r(self.e),
+            0x14: lambda: self.rl_r(self.h),
+            0x15: lambda: self.rl_r(self.l),
+            0x16:         self.rl_X,
+
+            0x0F: lambda: self.rrc_r(self.a),
+            0x08: lambda: self.rrc_r(self.b),
+            0x09: lambda: self.rrc_r(self.c),
+            0x0A: lambda: self.rrc_r(self.d),
+            0x0B: lambda: self.rrc_r(self.e),
+            0x0C: lambda: self.rrc_r(self.h),
+            0x0D: lambda: self.rrc_r(self.l),
+            0x0E:         self.rrc_X,
+
+            0x1F: lambda: self.rr_r(self.a),
+            0x18: lambda: self.rr_r(self.b),
+            0x19: lambda: self.rr_r(self.c),
+            0x1A: lambda: self.rr_r(self.d),
+            0x1B: lambda: self.rr_r(self.e),
+            0x1C: lambda: self.rr_r(self.h),
+            0x1D: lambda: self.rr_r(self.l),
+            0x1E:         self.rr_X,
+        }
+    
 
     def run(self):
         print("\nPC: Operation")
-        while True:
-            
-            self.opDesc = ""
+        while self.running:
+            self.op_desc = "main_loop" #dummy value used to check if set
             instruction = self.getMemory(int(self.pc))
             
             if instruction in self.op_table:
                 self.op_table[instruction]()
             else:
                 print("Instruction " + hex(instruction) + " not implemented! AAAAGH!! ... I'm dead ...")
+                self.pc += 1
+                self.running = False
                 break
 
-            if not self.opDesc:
-                print("No opDesc for:", hex(instruction))
+            if self.op_desc == "main_loop":
+                print("No op_desc for:", hex(instruction))
 
-    def getOperationWord(self):
+    def cb_prefix(self):
+        self.pc += 1
+        self.op_desc = "cb_prefix"
+        instruction = self.getImmediateByte()
+        if instruction in self.cb_op_table:
+            self.cb_op_table[instruction]()
+        else:
+            print("Instruction for 0xCB + " + hex(instruction) + " not implemented! AAAAGH!! ... I'm dead ...")
+            self.running = False
+
+        if self.op_desc == "cb_prefix":
+            print("No op_desc for 0xCB + " + hex(instruction))
+
+    def getImmediateWord(self):
         value = self.getMemory(int(self.pc)+1) + (self.getMemory(int(self.pc)+2) << 8)
         assert(value <= 0xFFFF)
         return value
 
-    def getOperationByte(self):
+    def getImmediateByte(self):
         value = self.getMemory(int(self.pc)+1)
         assert(value <= 0xFF)
         return value
@@ -216,12 +278,12 @@ class Emulator:
             self.ram[location - 0x4000] = value
     
     def setOpDesc(self, name, arg1="", arg2=""):
-        self.opDesc = "{}: {}".format(hex(int(self.pc)), name)
+        self.op_desc = "{}: {}".format(hex(int(self.pc)), name)
         if arg1:
-            self.opDesc += " " + arg1
+            self.op_desc += " " + arg1
         if arg2:
-            self.opDesc += ", " + arg2
-        print(self.opDesc)
+            self.op_desc += ", " + arg2
+        print(self.op_desc)
 
     def checkFlag(self, flagType):
         if flagType == "NZ":
@@ -235,14 +297,14 @@ class Emulator:
         else:
             assert(False)
 
-    # To to keep the op_table aligned and for docuementation purposes
+    # To to keep the op_table aligned and for documentation purposes
     # The following are used to refer to operands:
     #   r - register
     #   x - 16 bit register
     #   X - dereferenced 16 bit register
     #   b - byte (8 bit value)
     #   w - word (16 bit value)
-    #   W - derefenced word
+    #   W - dereferenced word
     #   f - flag conditional
     #
     # They are not used to refer to the arguments that the functions
@@ -262,7 +324,7 @@ class Emulator:
         self.cycles += 1
 
     def ld_rW(self, r):
-        W = self.getOperationWord()
+        W = self.getImmediateWord()
         self.setOpDesc("LD", r.getName(), "({})".format(asmHex(W)))
         r.set(self.getMemory(W))
         self.pc += 3
@@ -275,14 +337,14 @@ class Emulator:
         self.cycles += 2
 
     def ld_rb(self, r):
-        b = self.getOperationByte()
+        b = self.getImmediateByte()
         self.setOpDesc("LD", r.getName(), asmHex(b))
         r.set(b)
         self.pc += 2
         self.cycles += 2
 
     def ld_Xb(self, X):
-        b = self.getOperationByte()
+        b = self.getImmediateByte()
         self.setOpDesc("LD", "({})".format(X.getName()), asmHex(b))
         self.setMemory(int(X), b)
         self.pc += 2
@@ -295,7 +357,7 @@ class Emulator:
         self.cycles += 2
 
     def ld_xw(self, x):
-        w = self.getOperationWord()
+        w = self.getImmediateWord()
         self.setOpDesc("LD", x.getName(), asmHex(w))
         x.set(w)
         self.pc += 3
@@ -308,7 +370,7 @@ class Emulator:
         self.cycles += 2
 
     def ld_Wr(self, r): #Currently unused?
-        W = self.getOperationWord()
+        W = self.getImmediateWord()
         self.setOpDesc("LD", "({})".format(asmHex(W)), r.getName())
         self.setMemory(W, int(r))
         self.pc += 3
@@ -344,7 +406,7 @@ class Emulator:
 
     # Jumps
     def jp_w(self):
-        w = self.getOperationWord()
+        w = self.getImmediateWord()
         self.setOpDesc("JP", asmHex(w))
         self.pc.set(w)
         self.cycles += 3
@@ -355,7 +417,7 @@ class Emulator:
         self.cycles += 1
 
     def jp_fw(self, f):
-        w = self.getOperationWord()
+        w = self.getImmediateWord()
         self.setOpDesc("JP", f, asmHex(w))
         if self.checkFlag(f):
             self.pc.set(w)
@@ -364,13 +426,13 @@ class Emulator:
         self.cycles += 3
 
     def jr_b(self):
-        b = self.getOperationByte()
+        b = self.getImmediateByte()
         self.setOpDesc("JR", asmHex(b))
         self.pc += b
         self.cycles += 2
 
     def jr_fb(self, f):
-        b = self.getOperationByte()
+        b = self.getImmediateByte()
         self.setOpDesc("JR", f, asmHex(b))
         if self.checkFlag(f):
             self.pc += b
@@ -394,7 +456,7 @@ class Emulator:
         self.cycles += 2
 
     def xor_b(self):
-        b = self.getOperationByte()
+        b = self.getImmediateByte()
         self.setOpDesc("XOR", asmHex(b))
         xor = int(self.a) ^ b
         self.a.set(xor)
@@ -409,7 +471,7 @@ class Emulator:
         self.cycles += 1
         self.f.setZero(newValue == 0)
         self.f.setSubtract(False)
-        self.f.setHalfCarry(self.getBit(4))
+        self.f.setHalfCarry(r.getBit(4))
 
     def inc_X(self, X):
         self.setOpDesc("INC", "({})".format(X.getName()))
@@ -419,7 +481,7 @@ class Emulator:
         self.cycles += 3
         self.f.setZero(newValue == 0)
         self.f.setSubtract(False)
-        self.f.setHalfCarry(self.getBit(4))
+        self.f.setHalfCarry(r.getBit(4))
 
     def inc_x(self, x):
         self.setOpDesc("INC", x.getName())
@@ -452,6 +514,127 @@ class Emulator:
         x.set((int(x) - 1) % 0x100)
         self.pc += 1
         self.cycles += 2
+    
+    # Rotate and Shift
+    def rotateBase(self):
+        self.pc += 1
+        self.f.setZero(self.a == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(False)
+
+    def rlca(self):
+        self.setOpDesc("RRCA")
+        carry = self.a.getBit(7)
+        newValue = (int(self.a) << 1) | int(carry)
+        self.f.setCarry(carry)
+        self.a.set(newValue)
+        self.cycles += 1
+        self.rotateBase()
+
+    def rrca(self):
+        self.setOpDesc("RRCA")
+        carry = self.a.getBit(0)
+        newValue = (int(self.a) >> 1) | (int(carry) << 7)
+        self.f.setCarry(carry)
+        self.a.set(newValue)
+        self.cycles += 1
+        self.rotateBase()
+
+    def rla(self):
+        self.setOpDesc("RRA")
+        newValue = (int(self.a) << 1) | int(self.f.getCarry())
+        self.f.setCarry(self.a.getBit(7))
+        self.a.set(newValue)
+        self.cycles += 1
+        self.rotateBase()
+
+    def rra(self):
+        self.setOpDesc("RRA")
+        newValue = (int(self.a) >> 1) | (int(self.f.getCarry()) << 7)
+        self.f.setCarry(self.a.getBit(0))
+        self.a.set(newValue)
+        self.cycles += 1
+        self.rotateBase()
+
+    def rlc_r(self, r):
+        self.setOpDesc("RLC", r.getName())
+        carry = r.getBit(7)
+        newValue = (int(r) << 1) | int(carry)
+        self.f.setCarry(carry)
+        r.set(newValue)
+        self.cycles += 2
+        self.rotateBase()
+
+    def rrc_r(self, r):
+        self.setOpDesc("RRC", r.getName())
+        carry = r.getBit(0)
+        newValue = (int(r) >> 1) | (int(carry) << 7)
+        self.f.setCarry(carry)
+        r.set(newValue)
+        self.cycles += 2
+        self.rotateBase()
+
+    def rl_r(self, r):
+        self.setOpDesc("RRA", r.getName())
+        newValue = (int(r) << 1) | int(self.f.getCarry())
+        self.f.setCarry(r.getBit(7))
+        r.set(newValue)
+        self.cycles += 2
+        self.rotateBase()
+
+    def rr_r(self, r):
+        self.setOpDesc("RRA", r.getName())
+        newValue = (int(r) >> 1) | (int(self.f.getCarry()) << 7)
+        self.f.setCarry(r.getBit(0))
+        r.set(newValue)
+        self.cycles += 2
+        self.rotateBase()
+
+    def rlc_X(self, X):
+        self.setOpDesc("RLC", "({})".format(X.getName()))
+        address = int(X)
+        value = getMemory(address)
+
+        carry = (value & 0b10000000) >> 7 #getBit(7)
+        newValue = (value << 1) | int(carry)
+        self.f.setCarry(carry)
+        setMemory(address, value)
+        self.cycles += 4
+        self.rotateBase()
+
+    def rrc_X(self, X):
+        self.setOpDesc("RRC", "({})".format(X.getName()))
+        address = int(X)
+        value = getMemory(address)
+
+        carry = value & 1 #getBit(0)
+        newValue = (value >> 1) | (int(carry) << 7)
+        self.f.setCarry(carry)
+        setMemory(address, newValue)
+        self.cycles += 4
+        self.rotateBase()
+
+    def rl_X(self, X):
+        self.setOpDesc("RRA", "({})".format(X.getName()))
+        address = int(X)
+        value = getMemory(address)
+
+        newValue = (value << 1) | int(self.f.getCarry())
+        self.f.setCarry((value & 0b10000000) >> 7) #getBit(7)
+        setMemory(address, newValue)
+        self.cycles += 4
+        self.rotateBase()
+
+    def rr_X(self, X):
+        self.setOpDesc("RRA", "({})".format(X.getName()))
+        address = int(X)
+        value = getMemory(address)
+
+        newValue = (value >> 1) | (int(self.f.getCarry()) << 7)
+        self.f.setCarry(value & 1) #getBit(0)
+        setMemory(address, newValue)
+        self.cycles += 4
+        self.rotateBase()
 
 if __name__ == '__main__':
     import doctest
