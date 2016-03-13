@@ -219,6 +219,26 @@ class Emulator:
             0x9E: lambda: self.sub_rX(self.hl),
             0xDE:         self.sub_rb,
 
+            0xA7: lambda: self.and_r(self.a),
+            0xA0: lambda: self.and_r(self.b),
+            0xA1: lambda: self.and_r(self.c),
+            0xA2: lambda: self.and_r(self.d),
+            0xA3: lambda: self.and_r(self.e),
+            0xA4: lambda: self.and_r(self.h),
+            0xA5: lambda: self.and_r(self.l),
+            0xA6: lambda: self.and_X(self.hl),
+            0xE6:         self.and_b,
+
+            0xB7: lambda: self.or_r(self.a),
+            0xB0: lambda: self.or_r(self.b),
+            0xB1: lambda: self.or_r(self.c),
+            0xB2: lambda: self.or_r(self.d),
+            0xB3: lambda: self.or_r(self.e),
+            0xB4: lambda: self.or_r(self.h),
+            0xB5: lambda: self.or_r(self.l),
+            0xB6: lambda: self.or_X(self.hl),
+            0xF6:         self.or_b,
+
             0xAF: lambda: self.xor_r(self.a),
             0xA8: lambda: self.xor_r(self.b),
             0xA9: lambda: self.xor_r(self.c),
@@ -522,7 +542,7 @@ class Emulator:
         self.pc += 1
         self.cycles += 2
 
-    def ld_Wr(self, r): #Currently unused?
+    def ld_Wr(self, r):
         W = self.getImmediateWord()
         self.setOpDesc("LD", "({})".format(asmHex(W)), r.getName())
         self.setMemory(W, int(r))
@@ -801,6 +821,64 @@ class Emulator:
         self.pc += 2
         self.cycles += 2
 
+    # AND
+    def bitwiseBase(self):
+        self.f.setZero(int(self.a) == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(False)
+        self.f.setCarry(False)
+
+    def and_r(self, r):
+        self.setOpDesc("AND", r.getName())
+        xor = int(self.a) & int(r)
+        self.a.set(xor)
+        self.pc += 1
+        self.cycles += 1
+        self.bitwiseBase()
+
+    def and_X(self, X):
+        self.setOpDesc("AND", "({})".format(X.getName()))
+        xor = int(self.a) & self.getMemory(int(X))
+        self.a.set(xor)
+        self.pc += 1
+        self.cycles += 2
+        self.bitwiseBase()
+
+    def and_b(self):
+        b = self.getImmediateByte()
+        self.setOpDesc("AND", asmHex(b))
+        xor = int(self.a) & b
+        self.a.set(xor)
+        self.pc += 2
+        self.cycles += 2
+        self.bitwiseBase()
+
+    # OR
+    def or_r(self, r):
+        self.setOpDesc("OR", r.getName())
+        xor = int(self.a) | int(r)
+        self.a.set(xor)
+        self.pc += 1
+        self.cycles += 1
+        self.bitwiseBase()
+
+    def or_X(self, X):
+        self.setOpDesc("OR", "({})".format(X.getName()))
+        xor = int(self.a) | self.getMemory(int(X))
+        self.a.set(xor)
+        self.pc += 1
+        self.cycles += 2
+        self.bitwiseBase()
+
+    def or_b(self):
+        b = self.getImmediateByte()
+        self.setOpDesc("OR", asmHex(b))
+        xor = int(self.a) | b
+        self.a.set(xor)
+        self.pc += 2
+        self.cycles += 2
+        self.bitwiseBase()
+
     # XOR
     def xor_r(self, r):
         self.setOpDesc("XOR", r.getName())
@@ -808,6 +886,7 @@ class Emulator:
         self.a.set(xor)
         self.pc += 1
         self.cycles += 1
+        self.bitwiseBase()
 
     def xor_X(self, X):
         self.setOpDesc("XOR", "({})".format(X.getName()))
@@ -815,6 +894,7 @@ class Emulator:
         self.a.set(xor)
         self.pc += 1
         self.cycles += 2
+        self.bitwiseBase()
 
     def xor_b(self):
         b = self.getImmediateByte()
@@ -823,6 +903,7 @@ class Emulator:
         self.a.set(xor)
         self.pc += 2
         self.cycles += 2
+        self.bitwiseBase()
 
     # INC
     def inc_r(self, r):
