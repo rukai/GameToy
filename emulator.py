@@ -138,6 +138,17 @@ class Emulator:
             0xE1: lambda: self.pop_x(self.hl),
             0xF1: lambda: self.pop_x(self.af),
 
+            # Compare
+            0xBF: lambda: self.cp_r(self.a),
+            0xB8: lambda: self.cp_r(self.b),
+            0xB9: lambda: self.cp_r(self.c),
+            0xBA: lambda: self.cp_r(self.d),
+            0xBB: lambda: self.cp_r(self.e),
+            0xBC: lambda: self.cp_r(self.h),
+            0xBD: lambda: self.cp_r(self.l),
+            0xBE: lambda: self.cp_X(self.hl),
+            0xFE:         self.cp_b,
+
             # Jumps
             0xC3:         self.jp_w,
             0xE9: lambda: self.jp_X(self.hl),
@@ -168,6 +179,46 @@ class Emulator:
             0xD8: lambda: self.ret_f("C"),
 
             # ALU
+            0x87: lambda: self.add_rr(self.a),
+            0x80: lambda: self.add_rr(self.b),
+            0x81: lambda: self.add_rr(self.c),
+            0x82: lambda: self.add_rr(self.d),
+            0x83: lambda: self.add_rr(self.e),
+            0x84: lambda: self.add_rr(self.h),
+            0x85: lambda: self.add_rr(self.l),
+            0x86: lambda: self.add_rX(self.hl),
+            0xC6:         self.add_rb,
+
+            0x8f: lambda: self.adc_rr(self.a),
+            0x88: lambda: self.adc_rr(self.b),
+            0x89: lambda: self.adc_rr(self.c),
+            0x8A: lambda: self.adc_rr(self.d),
+            0x8B: lambda: self.adc_rr(self.e),
+            0x8C: lambda: self.adc_rr(self.h),
+            0x8D: lambda: self.adc_rr(self.l),
+            0x8E: lambda: self.adc_rX(self.hl),
+            0xCE:         self.adc_rb,
+
+            0x97: lambda: self.sub_rr(self.a),
+            0x90: lambda: self.sub_rr(self.b),
+            0x91: lambda: self.sub_rr(self.c),
+            0x92: lambda: self.sub_rr(self.d),
+            0x93: lambda: self.sub_rr(self.e),
+            0x94: lambda: self.sub_rr(self.h),
+            0x95: lambda: self.sub_rr(self.l),
+            0x96: lambda: self.sub_rX(self.hl),
+            0xD6:         self.sub_rb,
+
+            0x9f: lambda: self.sub_rr(self.a),
+            0x98: lambda: self.sub_rr(self.b),
+            0x99: lambda: self.sub_rr(self.c),
+            0x9A: lambda: self.sub_rr(self.d),
+            0x9B: lambda: self.sub_rr(self.e),
+            0x9C: lambda: self.sub_rr(self.h),
+            0x9D: lambda: self.sub_rr(self.l),
+            0x9E: lambda: self.sub_rX(self.hl),
+            0xDE:         self.sub_rb,
+
             0xAF: lambda: self.xor_r(self.a),
             0xA8: lambda: self.xor_r(self.b),
             0xA9: lambda: self.xor_r(self.c),
@@ -249,8 +300,79 @@ class Emulator:
             0x1C: lambda: self.rr_r(self.h),
             0x1D: lambda: self.rr_r(self.l),
             0x1E:         self.rr_X,
+
+            0xC7: lambda: self.set_ir(0, self.a),
+            0xC0: lambda: self.set_ir(0, self.b),
+            0xC1: lambda: self.set_ir(0, self.c),
+            0xC2: lambda: self.set_ir(0, self.d),
+            0xC3: lambda: self.set_ir(0, self.e),
+            0xC4: lambda: self.set_ir(0, self.h),
+            0xC5: lambda: self.set_ir(0, self.l),
+            0xC6: lambda: self.set_iX(0, self.hl),
+
+            0xCF: lambda: self.set_ir(1, self.a),
+            0xC8: lambda: self.set_ir(1, self.b),
+            0xC9: lambda: self.set_ir(1, self.c),
+            0xCA: lambda: self.set_ir(1, self.d),
+            0xCB: lambda: self.set_ir(1, self.e),
+            0xCC: lambda: self.set_ir(1, self.h),
+            0xCD: lambda: self.set_ir(1, self.l),
+            0xCE: lambda: self.set_iX(1, self.hl),
+
+            0xD7: lambda: self.set_ir(2, self.a),
+            0xD0: lambda: self.set_ir(2, self.b),
+            0xD1: lambda: self.set_ir(2, self.c),
+            0xD2: lambda: self.set_ir(2, self.d),
+            0xD3: lambda: self.set_ir(2, self.e),
+            0xD4: lambda: self.set_ir(2, self.h),
+            0xD5: lambda: self.set_ir(2, self.l),
+            0xD6: lambda: self.set_iX(2, self.hl),
+
+            0xDF: lambda: self.set_ir(3, self.a),
+            0xD8: lambda: self.set_ir(3, self.b),
+            0xD9: lambda: self.set_ir(3, self.c),
+            0xDA: lambda: self.set_ir(3, self.d),
+            0xDB: lambda: self.set_ir(3, self.e),
+            0xDC: lambda: self.set_ir(3, self.h),
+            0xDD: lambda: self.set_ir(3, self.l),
+            0xDE: lambda: self.set_iX(3, self.hl),
+            
+            0xE7: lambda: self.set_ir(4, self.a),
+            0xE0: lambda: self.set_ir(4, self.b),
+            0xE1: lambda: self.set_ir(4, self.c),
+            0xE2: lambda: self.set_ir(4, self.d),
+            0xE3: lambda: self.set_ir(4, self.e),
+            0xE4: lambda: self.set_ir(4, self.h),
+            0xE5: lambda: self.set_ir(4, self.l),
+            0xE6: lambda: self.set_iX(4, self.hl),
+
+            0xEF: lambda: self.set_ir(5, self.a),
+            0xE8: lambda: self.set_ir(5, self.b),
+            0xE9: lambda: self.set_ir(5, self.c),
+            0xEA: lambda: self.set_ir(5, self.d),
+            0xEB: lambda: self.set_ir(5, self.e),
+            0xEC: lambda: self.set_ir(5, self.h),
+            0xED: lambda: self.set_ir(5, self.l),
+            0xEE: lambda: self.set_iX(5, self.hl),
+
+            0xF7: lambda: self.set_ir(6, self.a),
+            0xF0: lambda: self.set_ir(6, self.b),
+            0xF1: lambda: self.set_ir(6, self.c),
+            0xF2: lambda: self.set_ir(6, self.d),
+            0xF3: lambda: self.set_ir(6, self.e),
+            0xF4: lambda: self.set_ir(6, self.h),
+            0xF5: lambda: self.set_ir(6, self.l),
+            0xF6: lambda: self.set_iX(6, self.hl),
+
+            0xFF: lambda: self.set_ir(7, self.a),
+            0xF8: lambda: self.set_ir(7, self.b),
+            0xF9: lambda: self.set_ir(7, self.c),
+            0xFA: lambda: self.set_ir(7, self.d),
+            0xFB: lambda: self.set_ir(7, self.e),
+            0xFC: lambda: self.set_ir(7, self.h),
+            0xFD: lambda: self.set_ir(7, self.l),
+            0xFE: lambda: self.set_iX(7, self.hl),
         }
-    
 
     def run(self):
         print("\nPC: Operation")
@@ -276,11 +398,11 @@ class Emulator:
         if instruction in self.cb_op_table:
             self.cb_op_table[instruction]()
         else:
-            print("Instruction for 0xCB + " + hex(instruction) + " not implemented! AAAAGH!! ... I'm dead ...")
+            print("Instruction for 0xCB+" + hex(instruction) + " not implemented! AAAAGH!! ... I'm dead ...")
             self.running = False
 
         if self.op_desc == "cb_prefix":
-            print("No op_desc for 0xCB + " + hex(instruction))
+            print("No op_desc for 0xCB+" + hex(instruction))
 
     def getImmediateWord(self):
         value = self.getMemory(int(self.pc)+1) + (self.getMemory(int(self.pc)+2) << 8)
@@ -336,11 +458,11 @@ class Emulator:
     #   w - immediate word (16 bit value)
     #   W - dereferenced immediate word
     #   f - flag conditional
+    #   i - index to register bit
     #
     # They are not used to refer to the arguments that the functions
     # used to emulate the operation take instead they refer to the
     # operands required for that operation in Assembly.
-    # With immediate bytes/words included after the regular arguments.
 
     def nop(self):
         self.setOpDesc("NOP")
@@ -471,6 +593,34 @@ class Emulator:
         self.pc += 1
         self.cycles += 3
 
+    # Compare
+    def cpBase(self, byte):
+        value = int(self.a) - byte
+        newValue = value % 0x100
+        self.f.setZero(value == 0)
+        self.f.setSubtract(True)
+        self.f.setHalfCarry(bool(newValue & 0x00010000)) #TODO: VERIFY
+        self.f.setCarry(value != newValue)
+
+    def cp_r(self, r):
+        self.setOpDesc("CP", r.getName())
+        self.cpBase(int(r))
+        self.pc += 1
+        self.cycles += 1
+
+    def cp_X(self, X):
+        self.setOpDesc("CP", "({})".format(X.getName()))
+        self.cpBase(getMemory(int(X)))
+        self.pc += 1
+        self.cycles += 2
+
+    def cp_b(self):
+        b = self.getImmediateByte()
+        self.setOpDesc("CP", asmHex(b))
+        self.cpBase(b)
+        self.pc += 2
+        self.cycles += 2
+
     # Jumps
     def jp_w(self):
         w = self.getImmediateWord()
@@ -555,7 +705,103 @@ class Emulator:
         self.retBase()
         self.cycles += 4
 
-    # ALU
+    # ADD
+    def addBase(self, byte):
+        value = int(self.a) + byte
+        newValue = value % 0x100
+        self.a.set(newValue)
+        self.f.setZero(value == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(self.a.getBit(4))
+        self.f.setCarry(value != newValue)
+        
+    def add_rr(self, r):
+        self.setOpDesc("ADD", "A", r.getName())
+        self.addBase(int(r))
+        self.pc += 1
+        self.cycles += 1
+
+    def add_rX(self, X):
+        self.setOpDesc("ADD", "A", "({})".format(X.getName()))
+        self.addBase(getMemory(int(X)))
+        self.pc += 1
+        self.cycles += 2
+
+    def add_rb(self):
+        b = getImmediateMemory()
+        self.setOpDesc("ADD", "A", asmHex(b))
+        self.addBase(b)
+        self.pc += 2
+        self.cycles += 2
+
+    def adc_rr(self, r):
+        self.setOpDesc("ADC", "A", r.getName())
+        self.addBase(int(r) + int(self.f.getCarry()))
+        self.pc += 1
+        self.cycles += 1
+
+    def adc_rX(self, X):
+        self.setOpDesc("ADC", "A", "({})".format(X.getName()))
+        self.addBase(getMemory(int(X)) + int(self.f.getCarry()))
+        self.pc += 1
+        self.cycles += 2
+
+    def adc_rb(self):
+        b = getImmediateMemory()
+        self.setOpDesc("ADC", "A", asmHex(b))
+        self.addBase(b + int(self.f.getCarry()))
+        self.pc += 2
+        self.cycles += 2
+
+    # SUB
+    def subBase(self, byte):
+        value = int(self.a) - byte
+        newValue = value % 0x100
+        self.a.set(newValue)
+        self.f.setZero(value == 0)
+        self.f.setSubtract(True)
+        self.f.setHalfCarry(self.a.getBit(4)) #TODO: VERIFY
+        self.f.setCarry(value != newValue)
+        
+    def sub_rr(self, r):
+        self.setOpDesc("SUB", "A", r.getName())
+        self.subBase(int(r))
+        self.pc += 1
+        self.cycles += 1
+
+    def sub_rX(self, X):
+        self.setOpDesc("SUB", "A", "({})".format(X.getName()))
+        self.subBase(getMemory(int(X)))
+        self.pc += 1
+        self.cycles += 2
+
+    def sub_rb(self):
+        b = getImmediateMemory()
+        self.setOpDesc("SUB", "A", asmHex(b))
+        self.subBase(b)
+        self.pc += 2
+        self.cycles += 2
+
+    def sbc_rr(self, r):
+        self.setOpDesc("SUB", "A", r.getName())
+        self.subBase(int(r) - int(self.f.getCarry()))
+        self.pc += 1
+        self.cycles += 1
+
+    def sbc_rX(self, X):
+        self.setOpDesc("SUB", "A", "({})".format(X.getName()))
+        self.subBase(getMemory(int(X)) - int(self.f.getCarry()))
+        self.pc += 1
+        self.cycles += 2
+
+    def sbc_rb(self):
+        b = getImmediateMemory()
+        self.setOpDesc("SUB", "A", asmHex(b))
+        self.subBase(b - int(self.f.getCarry()))
+        self.pc += 2
+        self.cycles += 2
+
+    # XOR
     def xor_r(self, r):
         self.setOpDesc("XOR", r.getName())
         xor = int(self.a) ^ int(r)
@@ -578,6 +824,7 @@ class Emulator:
         self.pc += 2
         self.cycles += 2
 
+    # INC
     def inc_r(self, r):
         self.setOpDesc("INC", r.getName())
         newValue = (int(r) + 1) % 0x100
@@ -604,6 +851,7 @@ class Emulator:
         self.pc += 1
         self.cycles += 2
 
+    #DEC
     def dec_r(self, r):
         self.setOpDesc("DEC", r.getName())
         newValue = (int(r) - 1) % 0x100
@@ -750,6 +998,20 @@ class Emulator:
         setMemory(address, newValue)
         self.cycles += 4
         self.rotateBase()
+
+    # Set
+    def set_ir(self, i, r):
+        self.setOpDesc("SET", str(i), r.getName())
+        r.setBit(i, True)
+        self.cycles += 2
+
+    def set_iX(self, i, X):
+        self.setOpDesc("SET", str(i), "({})".format(X.getName()))
+        address = int(X)
+        value = self.getMemory(address)
+        value = value | (1 << i)
+        setMemory(address, value)
+        self.cycles += 4
 
 if __name__ == "__main__":
     import doctest
