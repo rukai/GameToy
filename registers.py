@@ -88,7 +88,7 @@ class RegisterByte:
         return str(self.value)
 
     def __repr__(self):
-        return 'RegisterByte(' + hex(self.value) + ')'
+        return "RegisterByte(" + hex(self.value) + ")"
 
 class RegisterFlag(RegisterByte):
     def set(self, value):
@@ -178,8 +178,8 @@ class RegisterWord:
         return str(int(self))
 
     def __repr__(self):
-        return 'RegisterWord(' + hex(int(self)) + ')'
+        return "RegisterWord(" + hex(int(self)) + ")"
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
     doctest.testmod()

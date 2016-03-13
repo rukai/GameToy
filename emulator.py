@@ -9,20 +9,20 @@ class Emulator:
         self.cycles = 0 # machine cycles
         self.op_desc = "" # Stores a human readable string of the current operation for debugging
 
-        self.a      = registers.RegisterByte(0x0, 'A')
-        self.f      = registers.RegisterFlag(0x0, 'F')
-        self.b      = registers.RegisterByte(0x0, 'B')
-        self.c      = registers.RegisterByte(0x0, 'C')
-        self.d      = registers.RegisterByte(0x0, 'D')
-        self.e      = registers.RegisterByte(0x0, 'E')
-        self.h      = registers.RegisterByte(0x0, 'H')
-        self.l      = registers.RegisterByte(0x0, 'L')
-        self.af     = registers.RegisterWord(self.a, self.f, 'AF')
-        self.bc     = registers.RegisterWord(self.b, self.c, 'BC')
-        self.de     = registers.RegisterWord(self.d, self.e, 'DE')
-        self.hl     = registers.RegisterWord(self.h, self.l, 'HL')
-        self.pc     = registers.RegisterWord.fromValue(0x100, 'PC')
-        self.sp     = registers.RegisterWord.fromValue(0x0, 'SP')
+        self.a      = registers.RegisterByte(0x0, "A")
+        self.f      = registers.RegisterFlag(0xB0, "F")
+        self.b      = registers.RegisterByte(0x0, "B")
+        self.c      = registers.RegisterByte(0x13, "C")
+        self.d      = registers.RegisterByte(0x0, "D")
+        self.e      = registers.RegisterByte(0xD8, "E")
+        self.h      = registers.RegisterByte(0x1, "H")
+        self.l      = registers.RegisterByte(0x4D, "L")
+        self.af     = registers.RegisterWord(self.a, self.f, "AF")
+        self.bc     = registers.RegisterWord(self.b, self.c, "BC")
+        self.de     = registers.RegisterWord(self.d, self.e, "DE")
+        self.hl     = registers.RegisterWord(self.h, self.l, "HL")
+        self.pc     = registers.RegisterWord.fromValue(0x100, "PC")
+        self.sp     = registers.RegisterWord.fromValue(0xFFFE, "SP")
 
         self.op_table = {
 
@@ -110,6 +110,8 @@ class Emulator:
             0x1E: lambda: self.ld_rb(self.e),
             0x26: lambda: self.ld_rb(self.h),
             0x2E: lambda: self.ld_rb(self.l),
+            0xE0:         self.ldh_br,
+            0xF0:         self.ldh_rb,
             
             0x36: lambda: self.ld_Xb(self.hl),
             0x02: lambda: self.ld_Xr(self.bc, self.a),
@@ -125,6 +127,17 @@ class Emulator:
             0x31: lambda: self.ld_xw(self.sp),
             0xF9: lambda: self.ld_xx(self.sp, self.hl),
 
+            # Stack operations
+            0xC5: lambda: self.push_x(self.bc),
+            0xD5: lambda: self.push_x(self.de),
+            0xE5: lambda: self.push_x(self.hl),
+            0xF5: lambda: self.push_x(self.af),
+
+            0xC1: lambda: self.pop_x(self.bc),
+            0xD1: lambda: self.pop_x(self.de),
+            0xE1: lambda: self.pop_x(self.hl),
+            0xF1: lambda: self.pop_x(self.af),
+
             # Jumps
             0xC3:         self.jp_w,
             0xE9: lambda: self.jp_X(self.hl),
@@ -138,6 +151,21 @@ class Emulator:
             0x28: lambda: self.jr_fb("Z"),
             0x30: lambda: self.jr_fb("NC"),
             0x38: lambda: self.jr_fb("C"),
+
+            # Calls
+            0xCD:         self.call_w,
+            0xC4: lambda: self.call_fw("NZ"),
+            0xCC: lambda: self.call_fw("Z"),
+            0xD4: lambda: self.call_fw("NC"),
+            0xDC: lambda: self.call_fw("C"),
+
+            # Returns
+            0xC9:         self.ret,
+            0xD9:         self.reti,
+            0xC0: lambda: self.ret_f("NZ"),
+            0xC8: lambda: self.ret_f("Z"),
+            0xD0: lambda: self.ret_f("NC"),
+            0xD8: lambda: self.ret_f("C"),
 
             # ALU
             0xAF: lambda: self.xor_r(self.a),
@@ -176,7 +204,7 @@ class Emulator:
             0x3B: lambda: self.inc_x(self.bc),
             0x35:         self.dec_X,
 
-            # Rotate and Shift
+            # Rotates
             0x07:         self.rlca,
             0x0F:         self.rrca,
             0x17:         self.rla,
@@ -185,7 +213,7 @@ class Emulator:
         }
 
         self.cb_op_table = {
-            # Rotate
+            # Rotates
             0x07: lambda: self.rlc_r(self.a),
             0x00: lambda: self.rlc_r(self.b),
             0x01: lambda: self.rlc_r(self.c),
@@ -294,6 +322,8 @@ class Emulator:
             return not self.f.getCarry()
         elif flagType == "C":
             return self.f.getCarry()
+        elif flagType == "Always":
+            return True
         else:
             assert(False)
 
@@ -302,14 +332,15 @@ class Emulator:
     #   r - register
     #   x - 16 bit register
     #   X - dereferenced 16 bit register
-    #   b - byte (8 bit value)
-    #   w - word (16 bit value)
-    #   W - dereferenced word
+    #   b - immediate byte (8 bit value)
+    #   w - immediate word (16 bit value)
+    #   W - dereferenced immediate word
     #   f - flag conditional
     #
     # They are not used to refer to the arguments that the functions
     # used to emulate the operation take instead they refer to the
     # operands required for that operation in Assembly.
+    # With immediate bytes/words included after the regular arguments.
 
     def nop(self):
         self.setOpDesc("NOP")
@@ -384,7 +415,7 @@ class Emulator:
         self.cycles += 2
 
     def ldd_Xr(self):
-        self.setOpDesc("LDD", "({HL})", "A")
+        self.setOpDesc("LDD", "(HL)", "A")
         self.setMemory(int(self.hl), int(self.a))
         self.hl -= 1
         self.pc += 1
@@ -398,11 +429,47 @@ class Emulator:
         self.cycles += 2
 
     def ldi_Xr(self):
-        self.setOpDesc("LDI", "({HL})", "A")
+        self.setOpDesc("LDI", "(HL)", "A")
         self.setMemory(int(self.hl), int(self.a))
         self.hl += 1
         self.pc += 1
         self.cycles += 2
+
+    def ldh_br(self):
+        b = self.getImmediateByte()
+        self.setOpDesc("LDH", "($FF00+{})".format(asmHex(b)), "A")
+        address = 0xFF00 + b
+        self.setMemory(address, int(self.a))
+        self.pc += 2
+        self.cycles += 3
+
+    def ldh_rb(self):
+        b = self.getImmediateByte()
+        address = 0xFF00 + b
+        self.setOpDesc("LDH", "A", "($FF00+{})".format(asmHex(b)))
+        self.a.set(self.getMemory(address))
+        self.pc += 2
+        self.cycles += 3
+
+    
+    # Stack Operations
+    def push_x(self, x):
+        self.setOpDesc("PUSH", x.getName())
+        self.sp -= 1
+        self.setMemory(int(self.sp), int(x.r1))
+        self.sp -= 1
+        self.setMemory(int(self.sp), int(x.r2))
+        self.pc += 1
+        self.cycles += 4
+
+    def pop_x(self, x):
+        self.setOpDesc("POP", x.getName())
+        x.r2.set(self.getMemory(int(self.sp)))
+        self.sp += 1
+        x.r1.set(self.getMemory(int(self.sp)))
+        self.sp += 1
+        self.pc += 1
+        self.cycles += 3
 
     # Jumps
     def jp_w(self):
@@ -439,6 +506,54 @@ class Emulator:
         else:
             self.pc += 2
         self.cycles += 2
+
+    # Calls
+    def call_w(self):
+        self.call_fw("Always")
+
+    def call_fw(self, f):
+        w = self.getImmediateWord()
+        if f == "Always":
+            self.setOpDesc("CALL", asmHex(w))
+        else:
+            self.setOpDesc("CALL", f, asmHex(w))
+
+        self.pc += 3
+        if self.checkFlag(f):
+            self.sp -= 1
+            self.setMemory(int(self.sp), int(self.pc.r1))
+            self.sp -= 1
+            self.setMemory(int(self.sp), int(self.pc.r2))
+            self.pc.set(w)
+            self.cycles += 6
+        else:
+            self.cycles += 3
+
+    # Returns
+    def retBase(self):
+        self.pc.r2.set(self.getMemory(int(self.sp)))
+        self.sp += 1
+        self.pc.r1.set(self.getMemory(int(self.sp)))
+        self.sp += 1
+
+    def ret(self):
+        self.setOpDesc("RET")
+        self.retBase()
+        self.cycles += 4
+
+    def ret_f(self, f):
+        self.setOpDesc("RET", f)
+        if self.checkFlag(f):
+            self.retBase()
+            self.cycles += 4
+        else:
+            self.pc += 1
+            self.cycles += 2
+
+    def reti(self):
+        self.setOpDesc("RETI")
+        self.retBase()
+        self.cycles += 4
 
     # ALU
     def xor_r(self, r):
@@ -497,7 +612,7 @@ class Emulator:
         self.cycles += 1
         self.f.setZero(newValue == 0)
         self.f.setSubtract(True)
-        self.f.setHalfCarry(r.getBit(4)) #hope this is same for subtraction
+        self.f.setHalfCarry(r.getBit(4))
 
     def dec_X(self, X):
         self.setOpDesc("DEC", "({})".format(X.getName()))
@@ -515,7 +630,7 @@ class Emulator:
         self.pc += 1
         self.cycles += 2
     
-    # Rotate and Shift
+    # Rotates
     def rotateBase(self):
         self.pc += 1
         self.f.setZero(self.a == 0)
@@ -636,10 +751,10 @@ class Emulator:
         self.cycles += 4
         self.rotateBase()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
 # Chuck this in another file
 def asmHex(integer):
-    return '$' + hex(integer)[2:]
+    return "$" + hex(integer)[2:]

@@ -6,7 +6,7 @@ import emulator
 
 def run(path):
     path = os.path.abspath(path)
-    with open(path, 'rb') as rom_file:
+    with open(path, "rb") as rom_file:
         rom = [i for i in rom_file.read() ]
 
         header = Header(rom)
