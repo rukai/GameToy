@@ -2,8 +2,9 @@
 
 import sys
 import os
-import cpu
-import memory
+from cpu import CPU
+from memory import Memory
+from interrupts import Interrupts
 
 def run(path):
     path = os.path.abspath(path)
@@ -12,9 +13,14 @@ def run(path):
 
         header = Header(rom)
         print(header.name)
-        mem = memory.Memory(rom, header)
-        emu = cpu.CPU(mem)
-        emu.run()
+        print("\nPC:    Operation")
+        
+        mem = Memory(rom, header)
+        interrupts = Interrupts(mem)
+        cpu = CPU(mem, interrupts)
+        while cpu.running:
+            interrupts.update()
+            cpu.run()
 
 class Header:
     def __init__(self, rom):

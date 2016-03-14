@@ -1,8 +1,9 @@
 import registers
+import interrupts
 import memory
 
 class CPU:
-    def __init__(self, mem):
+    def __init__(self, mem, interrupts):
         self.running = True
         self.mem = mem
         self.cycles = 0 # machine cycles
@@ -23,9 +24,16 @@ class CPU:
         self.pc     = registers.RegisterWord.fromValue(0x100, "PC")
         self.sp     = registers.RegisterWord.fromValue(0xFFFE, "SP")
 
+        self.interrupts = interrupts
+        interrupts.setCall(self.callBase)
+
         self.op_table = {
 
             0x00:         self.nop,
+
+            #Interrupts
+            0xF3:         self.di,
+            0xFB:         self.ei,
 
             # Loads
             0x7F: lambda: self.ld_rr(self.a, self.a),
@@ -395,24 +403,22 @@ class CPU:
         }
 
     def run(self):
-        print("\nPC:    Operation")
-        while self.running:
-            self.op_desc = "main_loop" #dummy value used to check if set
-            instruction = self.mem.get(int(self.pc))
+        self.op_desc = "main_loop" #dummy value used to check if set
+        instruction = self.mem.get(int(self.pc))
 
-            if instruction in self.op_table:
-                self.op_table[instruction]()
-            else:
-                msg = "{}: Instruction {} not implemented! AAAAGH!! ... I'm dead ..."
-                print(msg.format(asmHex(int(self.pc), 4), asmHex(instruction)))
-                self.pc += 1
-                self.running = False
-                break
+        if instruction in self.op_table:
+            self.op_table[instruction]()
+        else:
+            msg = "{}: Instruction {} not implemented! AAAAGH!! ... I'm dead ..."
+            print(msg.format(asmHex(int(self.pc), 4), asmHex(instruction)))
+            self.pc += 1
+            self.running = False
+            return
 
-            if self.op_desc == "main_loop":
-                print("No op_desc for:", asmHex(instruction))
+        if self.op_desc == "main_loop":
+            print("No op_desc for:", asmHex(instruction))
 
-            #self.displayRegisters()
+        #self.displayRegisters()
 
     def cb_prefix(self):
         self.pc += 1
@@ -424,6 +430,7 @@ class CPU:
             msg = "{}: Instruction $CB+{} not implemented! AAAAGH!! ... I'm dead ..."
             print(msg.format(asmHex(int(self.pc), 4), asmHex(instruction)))
             self.running = False
+            return
 
         if self.op_desc == "cb_prefix":
             print("No op_desc for $CB+" + asmHex(instruction))
@@ -687,23 +694,28 @@ class CPU:
         self.cycles += 2
 
     # Calls
+    def callBase(self, location):
+        self.sp -= 1
+        self.mem.set(int(self.sp), int(self.pc.r1))
+        self.sp -= 1
+        self.mem.set(int(self.sp), int(self.pc.r2))
+        self.pc.set(location)
+
     def call_w(self):
-        self.call_fw("Always")
+        w = self.getImmediateWord()
+        self.setOpDesc("CALL", asmHex(w, 4))
+        
+        self.pc += 3
+        self.callBase(w)
+        self.cycles += 3
 
     def call_fw(self, f):
         w = self.getImmediateWord()
-        if f == "Always":
-            self.setOpDesc("CALL", asmHex(w, 4))
-        else:
-            self.setOpDesc("CALL", f, asmHex(w, 4))
+        self.setOpDesc("CALL", f, asmHex(w, 4))
 
         self.pc += 3
         if self.checkFlag(f):
-            self.sp -= 1
-            self.mem.set(int(self.sp), int(self.pc.r1))
-            self.sp -= 1
-            self.mem.set(int(self.sp), int(self.pc.r2))
-            self.pc.set(w)
+            callBase(w)
             self.cycles += 6
         else:
             self.cycles += 3
@@ -733,6 +745,7 @@ class CPU:
         self.setOpDesc("RETI")
         self.retBase()
         self.cycles += 4
+        self.interrupts.setEnable(True)
 
     # ADD
     def addBase(self, byte):
@@ -839,16 +852,16 @@ class CPU:
 
     def and_r(self, r):
         self.setOpDesc("AND", r.getName())
-        xor = int(self.a) & int(r)
-        self.a.set(xor)
+        value = int(self.a) & int(r)
+        self.a.set(value)
         self.pc += 1
         self.cycles += 1
         self.bitwiseBase()
 
     def and_X(self, X):
         self.setOpDesc("AND", "({})".format(X.getName()))
-        xor = int(self.a) & self.mem.get(int(X))
-        self.a.set(xor)
+        value = int(self.a) & self.mem.get(int(X))
+        self.a.set(value)
         self.pc += 1
         self.cycles += 2
         self.bitwiseBase()
@@ -856,8 +869,8 @@ class CPU:
     def and_b(self):
         b = self.getImmediateByte()
         self.setOpDesc("AND", asmHex(b))
-        xor = int(self.a) & b
-        self.a.set(xor)
+        value = int(self.a) & b
+        self.a.set(value)
         self.pc += 2
         self.cycles += 2
         self.bitwiseBase()
@@ -865,16 +878,16 @@ class CPU:
     # OR
     def or_r(self, r):
         self.setOpDesc("OR", r.getName())
-        xor = int(self.a) | int(r)
-        self.a.set(xor)
+        value = int(self.a) | int(r)
+        self.a.set(value)
         self.pc += 1
         self.cycles += 1
         self.bitwiseBase()
 
     def or_X(self, X):
         self.setOpDesc("OR", "({})".format(X.getName()))
-        xor = int(self.a) | self.mem.get(int(X))
-        self.a.set(xor)
+        value = int(self.a) | self.mem.get(int(X))
+        self.a.set(value)
         self.pc += 1
         self.cycles += 2
         self.bitwiseBase()
@@ -882,8 +895,8 @@ class CPU:
     def or_b(self):
         b = self.getImmediateByte()
         self.setOpDesc("OR", asmHex(b))
-        xor = int(self.a) | b
-        self.a.set(xor)
+        value = int(self.a) | b
+        self.a.set(value)
         self.pc += 2
         self.cycles += 2
         self.bitwiseBase()
@@ -1104,6 +1117,19 @@ class CPU:
         setMemory(address, value)
         self.cycles += 4
         self.pc += 1
+
+    # Interrupts
+    def di(self):
+        self.setOpDesc("DI")
+        self.pc += 1
+        self.cycles += 1
+        self.interrupts.setEnable(False)
+
+    def ei(self):
+        self.setOpDesc("EI")
+        self.pc += 1
+        self.cycles += 1
+        self.interrupts.setEnable(True)
 
 if __name__ == "__main__":
     import doctest
