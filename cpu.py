@@ -1,11 +1,10 @@
 import registers
+import memory
 
-class Emulator:
-    def __init__(self, rom, header):
-        self.rom    = rom
-        self.ram    = [0 for i in range(0x10000)] # Quick hack
-        self.header = header
+class CPU:
+    def __init__(self, mem):
         self.running = True
+        self.mem = mem
         self.cycles = 0 # machine cycles
         self.op_desc = "" # Stores a human readable string of the current operation for debugging
 
@@ -27,7 +26,7 @@ class Emulator:
         self.op_table = {
 
             0x00:         self.nop,
-            
+
             # Loads
             0x7F: lambda: self.ld_rr(self.a, self.a),
             0x78: lambda: self.ld_rr(self.a, self.b),
@@ -40,6 +39,7 @@ class Emulator:
             0x0A: lambda: self.ld_rX(self.a, self.bc),
             0x1A: lambda: self.ld_rX(self.a, self.de),
             0x3A: lambda: self.ld_rW(self.a),
+            0xEA: lambda: self.ld_Wr(self.a),
 
             0x47: lambda: self.ld_rr(self.b, self.a),
             0x40: lambda: self.ld_rr(self.b, self.b),
@@ -112,7 +112,7 @@ class Emulator:
             0x2E: lambda: self.ld_rb(self.l),
             0xE0:         self.ldh_br,
             0xF0:         self.ldh_rb,
-            
+
             0x36: lambda: self.ld_Xb(self.hl),
             0x02: lambda: self.ld_Xr(self.bc, self.a),
             0x12: lambda: self.ld_Xr(self.de, self.a),
@@ -395,21 +395,24 @@ class Emulator:
         }
 
     def run(self):
-        print("\nPC: Operation")
+        print("\nPC:    Operation")
         while self.running:
             self.op_desc = "main_loop" #dummy value used to check if set
-            instruction = self.getMemory(int(self.pc))
-            
+            instruction = self.mem.get(int(self.pc))
+
             if instruction in self.op_table:
                 self.op_table[instruction]()
             else:
-                print("Instruction " + hex(instruction) + " not implemented! AAAAGH!! ... I'm dead ...")
+                msg = "{}: Instruction {} not implemented! AAAAGH!! ... I'm dead ..."
+                print(msg.format(asmHex(int(self.pc), 4), asmHex(instruction)))
                 self.pc += 1
                 self.running = False
                 break
 
             if self.op_desc == "main_loop":
-                print("No op_desc for:", hex(instruction))
+                print("No op_desc for:", asmHex(instruction))
+
+            #self.displayRegisters()
 
     def cb_prefix(self):
         self.pc += 1
@@ -418,42 +421,34 @@ class Emulator:
         if instruction in self.cb_op_table:
             self.cb_op_table[instruction]()
         else:
-            print("Instruction for 0xCB+" + hex(instruction) + " not implemented! AAAAGH!! ... I'm dead ...")
+            msg = "{}: Instruction $CB+{} not implemented! AAAAGH!! ... I'm dead ..."
+            print(msg.format(asmHex(int(self.pc), 4), asmHex(instruction)))
             self.running = False
 
         if self.op_desc == "cb_prefix":
-            print("No op_desc for 0xCB+" + hex(instruction))
+            print("No op_desc for $CB+" + asmHex(instruction))
 
-    def getImmediateWord(self):
-        value = self.getMemory(int(self.pc)+1) + (self.getMemory(int(self.pc)+2) << 8)
-        assert(value <= 0xFFFF)
-        return value
-
-    def getImmediateByte(self):
-        value = self.getMemory(int(self.pc)+1)
-        assert(value <= 0xFF)
-        return value
-
-    def getMemory(self, location):
-        if location < 0x4000:
-            return self.rom[location]
-        else:
-            return self.ram[location - 0x4000]
-
-    def setMemory(self, location, value):
-        if location < 0x4000:
-            print(hex(location))
-            assert(False)
-        else:
-            self.ram[location - 0x4000] = value
-    
     def setOpDesc(self, name, arg1="", arg2=""):
-        self.op_desc = "{}: {}".format(hex(int(self.pc)), name)
+        self.op_desc = "{}: {}".format(asmHex(int(self.pc), 4), name)
         if arg1:
             self.op_desc += " " + arg1
         if arg2:
             self.op_desc += ", " + arg2
         print(self.op_desc)
+
+    def displayRegisters(self):
+        print("------------------------------------------------")
+        print("a:", asmHex(int(self.a)))
+        print("b:", asmHex(int(self.b)))
+        print("c:", asmHex(int(self.c)))
+        print("d:", asmHex(int(self.d)))
+        print("e:", asmHex(int(self.e)))
+        print("f:", asmHex(int(self.f)), "0b" + format(int(self.f), '08b'))
+        print("h:", asmHex(int(self.h)))
+        print("l:", asmHex(int(self.l)))
+        print("pc:", asmHex(int(self.pc), 4))
+        print("sp:", asmHex(int(self.sp), 4))
+        print("------------------------------------------------")
 
     def checkFlag(self, flagType):
         if flagType == "NZ":
@@ -468,6 +463,21 @@ class Emulator:
             return True
         else:
             assert(False)
+
+    def getImmediateWord(self):
+        value = self.mem.get(int(self.pc)+1) + (self.mem.get(int(self.pc)+2) << 8)
+        assert(value <= 0xFFFF)
+        return value
+
+    def getImmediateByte(self):
+        value = self.mem.get(int(self.pc)+1)
+        assert(value <= 0xFF)
+        return value
+
+    def getImmediateSignedByte(self):
+        value = self.mem.getSigned(int(self.pc)+1)
+        assert(value <= 0xFF)
+        return value
 
     # To to keep the op_table aligned and for documentation purposes
     # The following are used to refer to operands:
@@ -499,13 +509,13 @@ class Emulator:
     def ld_rW(self, r):
         W = self.getImmediateWord()
         self.setOpDesc("LD", r.getName(), "({})".format(asmHex(W)))
-        r.set(self.getMemory(W))
+        r.set(self.mem.get(W))
         self.pc += 3
         self.cycles += 4
 
     def ld_rX(self, r, X):
         self.setOpDesc("LD", r.getName(), "({})".format(X.getName()))
-        r.set(self.getMemory(int(X)))
+        r.set(self.mem.get(int(X)))
         self.pc += 1
         self.cycles += 2
 
@@ -519,19 +529,19 @@ class Emulator:
     def ld_Xb(self, X):
         b = self.getImmediateByte()
         self.setOpDesc("LD", "({})".format(X.getName()), asmHex(b))
-        self.setMemory(int(X), b)
+        self.mem.set(int(X), b)
         self.pc += 2
         self.cycles += 3
 
     def ld_Xr(self, X, r):
         self.setOpDesc("LD",  "({})".format(X.getName()), r.getName())
-        self.setMemory(int(X), int(r))
+        self.mem.set(int(X), int(r))
         self.pc += 1
         self.cycles += 2
 
     def ld_xw(self, x):
         w = self.getImmediateWord()
-        self.setOpDesc("LD", x.getName(), asmHex(w))
+        self.setOpDesc("LD", x.getName(), asmHex(w, 4))
         x.set(w)
         self.pc += 3
         self.cycles += 3
@@ -544,35 +554,35 @@ class Emulator:
 
     def ld_Wr(self, r):
         W = self.getImmediateWord()
-        self.setOpDesc("LD", "({})".format(asmHex(W)), r.getName())
-        self.setMemory(W, int(r))
+        self.setOpDesc("LD", "({})".format(asmHex(W, 4)), r.getName())
+        self.mem.set(W, int(r))
         self.pc += 3
         self.cycles += 4
 
     def ldd_rX(self):
         self.setOpDesc("LDD", "A", "({HL})")
-        self.a.set(self.getMemory(int(self.hl)))
+        self.a.set(self.mem.get(int(self.hl)))
         self.hl -= 1
         self.pc += 1
         self.cycles += 2
 
     def ldd_Xr(self):
         self.setOpDesc("LDD", "(HL)", "A")
-        self.setMemory(int(self.hl), int(self.a))
+        self.mem.set(int(self.hl), int(self.a))
         self.hl -= 1
         self.pc += 1
         self.cycles += 2
 
     def ldi_rX(self):
         self.setOpDesc("LDI", "A", "({HL})")
-        self.a.set(self.getMemory(int(self.hl)))
+        self.a.set(self.mem.get(int(self.hl)))
         self.hl += 1
         self.pc += 1
         self.cycles += 2
 
     def ldi_Xr(self):
         self.setOpDesc("LDI", "(HL)", "A")
-        self.setMemory(int(self.hl), int(self.a))
+        self.mem.set(int(self.hl), int(self.a))
         self.hl += 1
         self.pc += 1
         self.cycles += 2
@@ -581,7 +591,7 @@ class Emulator:
         b = self.getImmediateByte()
         self.setOpDesc("LDH", "($FF00+{})".format(asmHex(b)), "A")
         address = 0xFF00 + b
-        self.setMemory(address, int(self.a))
+        self.mem.set(address, int(self.a))
         self.pc += 2
         self.cycles += 3
 
@@ -589,26 +599,25 @@ class Emulator:
         b = self.getImmediateByte()
         address = 0xFF00 + b
         self.setOpDesc("LDH", "A", "($FF00+{})".format(asmHex(b)))
-        self.a.set(self.getMemory(address))
+        self.a.set(self.mem.get(address))
         self.pc += 2
         self.cycles += 3
 
-    
     # Stack Operations
     def push_x(self, x):
         self.setOpDesc("PUSH", x.getName())
         self.sp -= 1
-        self.setMemory(int(self.sp), int(x.r1))
+        self.mem.set(int(self.sp), int(x.r1))
         self.sp -= 1
-        self.setMemory(int(self.sp), int(x.r2))
+        self.mem.set(int(self.sp), int(x.r2))
         self.pc += 1
         self.cycles += 4
 
     def pop_x(self, x):
         self.setOpDesc("POP", x.getName())
-        x.r2.set(self.getMemory(int(self.sp)))
+        x.r2.set(self.mem.get(int(self.sp)))
         self.sp += 1
-        x.r1.set(self.getMemory(int(self.sp)))
+        x.r1.set(self.mem.get(int(self.sp)))
         self.sp += 1
         self.pc += 1
         self.cycles += 3
@@ -644,18 +653,18 @@ class Emulator:
     # Jumps
     def jp_w(self):
         w = self.getImmediateWord()
-        self.setOpDesc("JP", asmHex(w))
+        self.setOpDesc("JP", asmHex(w, 4))
         self.pc.set(w)
         self.cycles += 3
 
     def jp_X(self, X):
         self.setOpDesc("JP", "({})".format(X.getName()))
-        self.pc.set(self.getMemory(int(x)))
+        self.pc.set(self.mem.get(int(x)))
         self.cycles += 1
 
     def jp_fw(self, f):
         w = self.getImmediateWord()
-        self.setOpDesc("JP", f, asmHex(w))
+        self.setOpDesc("JP", f, asmHex(w, 4))
         if self.checkFlag(f):
             self.pc.set(w)
         else:
@@ -663,13 +672,13 @@ class Emulator:
         self.cycles += 3
 
     def jr_b(self):
-        b = self.getImmediateByte()
+        b = self.getImmediateSignedByte()
         self.setOpDesc("JR", asmHex(b))
         self.pc += b
         self.cycles += 2
 
     def jr_fb(self, f):
-        b = self.getImmediateByte()
+        b = self.getImmediateSignedByte()
         self.setOpDesc("JR", f, asmHex(b))
         if self.checkFlag(f):
             self.pc += b
@@ -684,16 +693,16 @@ class Emulator:
     def call_fw(self, f):
         w = self.getImmediateWord()
         if f == "Always":
-            self.setOpDesc("CALL", asmHex(w))
+            self.setOpDesc("CALL", asmHex(w, 4))
         else:
-            self.setOpDesc("CALL", f, asmHex(w))
+            self.setOpDesc("CALL", f, asmHex(w, 4))
 
         self.pc += 3
         if self.checkFlag(f):
             self.sp -= 1
-            self.setMemory(int(self.sp), int(self.pc.r1))
+            self.mem.set(int(self.sp), int(self.pc.r1))
             self.sp -= 1
-            self.setMemory(int(self.sp), int(self.pc.r2))
+            self.mem.set(int(self.sp), int(self.pc.r2))
             self.pc.set(w)
             self.cycles += 6
         else:
@@ -701,9 +710,9 @@ class Emulator:
 
     # Returns
     def retBase(self):
-        self.pc.r2.set(self.getMemory(int(self.sp)))
+        self.pc.r2.set(self.mem.get(int(self.sp)))
         self.sp += 1
-        self.pc.r1.set(self.getMemory(int(self.sp)))
+        self.pc.r1.set(self.mem.get(int(self.sp)))
         self.sp += 1
 
     def ret(self):
@@ -734,7 +743,7 @@ class Emulator:
         self.f.setSubtract(False)
         self.f.setHalfCarry(self.a.getBit(4))
         self.f.setCarry(value != newValue)
-        
+
     def add_rr(self, r):
         self.setOpDesc("ADD", "A", r.getName())
         self.addBase(int(r))
@@ -782,7 +791,7 @@ class Emulator:
         self.f.setSubtract(True)
         self.f.setHalfCarry(self.a.getBit(4)) #TODO: VERIFY
         self.f.setCarry(value != newValue)
-        
+
     def sub_rr(self, r):
         self.setOpDesc("SUB", "A", r.getName())
         self.subBase(int(r))
@@ -838,7 +847,7 @@ class Emulator:
 
     def and_X(self, X):
         self.setOpDesc("AND", "({})".format(X.getName()))
-        xor = int(self.a) & self.getMemory(int(X))
+        xor = int(self.a) & self.mem.get(int(X))
         self.a.set(xor)
         self.pc += 1
         self.cycles += 2
@@ -864,7 +873,7 @@ class Emulator:
 
     def or_X(self, X):
         self.setOpDesc("OR", "({})".format(X.getName()))
-        xor = int(self.a) | self.getMemory(int(X))
+        xor = int(self.a) | self.mem.get(int(X))
         self.a.set(xor)
         self.pc += 1
         self.cycles += 2
@@ -890,7 +899,7 @@ class Emulator:
 
     def xor_X(self, X):
         self.setOpDesc("XOR", "({})".format(X.getName()))
-        xor = int(self.a) ^ self.getMemory(int(X))
+        xor = int(self.a) ^ self.mem.get(int(X))
         self.a.set(xor)
         self.pc += 1
         self.cycles += 2
@@ -917,9 +926,9 @@ class Emulator:
         self.f.setHalfCarry(r.getBit(4))
 
     def inc_X(self, X):
-        self.setOpDesc("INC", "({})".format(X.getName()))
-        newValue = (self.getMemory(int(X)) + 1) % 0x100
-        self.setmemory(int(X), newValue)
+        self.setOpDesc("INC", "(HL)")
+        newValue = (self.mem.get(int(self.hl)) + 1) % 0x100
+        self.mem.set(int(self.hl), newValue)
         self.pc += 1
         self.cycles += 3
         self.f.setZero(newValue == 0)
@@ -943,10 +952,10 @@ class Emulator:
         self.f.setSubtract(True)
         self.f.setHalfCarry(r.getBit(4))
 
-    def dec_X(self, X):
-        self.setOpDesc("DEC", "({})".format(X.getName()))
-        newValue = (self.getMemory(int(X)) -1) % 0x100
-        self.setmemory(int(X), newValue)
+    def dec_X(self):
+        self.setOpDesc("DEC", "(HL)")
+        newValue = (self.mem.get(int(self.hl)) -1) % 0x100
+        self.mem.set(int(self.hl), newValue)
         self.pc += 1
         self.cycles += 3
         self.f.setZero(newValue == 0)
@@ -1085,19 +1094,24 @@ class Emulator:
         self.setOpDesc("SET", str(i), r.getName())
         r.setBit(i, True)
         self.cycles += 2
+        self.pc += 1
 
     def set_iX(self, i, X):
         self.setOpDesc("SET", str(i), "({})".format(X.getName()))
         address = int(X)
-        value = self.getMemory(address)
+        value = self.mem.get(address)
         value = value | (1 << i)
         setMemory(address, value)
         self.cycles += 4
+        self.pc += 1
 
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
 # Chuck this in another file
-def asmHex(integer):
-    return "$" + hex(integer)[2:]
+def asmHex(integer, width = 2):
+    if integer >= 0:
+        return "$" + hex(integer)[2:].zfill(width)
+    else:
+        return "-$" + hex(integer)[3:].zfill(width)

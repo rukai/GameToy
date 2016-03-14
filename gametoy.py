@@ -2,7 +2,8 @@
 
 import sys
 import os
-import emulator
+import cpu
+import memory
 
 def run(path):
     path = os.path.abspath(path)
@@ -11,7 +12,8 @@ def run(path):
 
         header = Header(rom)
         print(header.name)
-        emu = emulator.Emulator(rom, header)
+        mem = memory.Memory(rom, header)
+        emu = cpu.CPU(mem)
         emu.run()
 
 class Header:
