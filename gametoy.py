@@ -5,6 +5,7 @@ import os
 from cpu import CPU
 from memory import Memory
 from interrupts import Interrupts
+from lcdc import LCDC
 
 def run(path):
     path = os.path.abspath(path)
@@ -18,9 +19,11 @@ def run(path):
         mem = Memory(rom, header)
         interrupts = Interrupts(mem)
         cpu = CPU(mem, interrupts)
+        lcdc = LCDC(mem)
         while cpu.running:
             interrupts.update()
             cpu.run()
+            lcdc.update()
 
 class Header:
     def __init__(self, rom):
