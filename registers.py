@@ -69,13 +69,11 @@ class RegisterByte:
         return self.value + value
 
     def __iadd__(self, value):
-        self.value += value
-        assert(self.value <= 0xFF)
+        self.value = (self.value + value) % 0x100
         return self
 
     def __isub__(self, value):
-        self.value -= value
-        assert(self.value >= 0)
+        self.value = (self.value - value) % 0x100
         return self
 
     def __eq__(self, value):
@@ -159,13 +157,11 @@ class RegisterWord:
         return int(self) + value
 
     def __iadd__(self, value):
-        self.set(int(self) + value)
-        assert(int(self) < 0xFFFF)
+        self.set((int(self) + value) % 0x10000)
         return self
 
     def __isub__(self, value):
-        self.set(int(self) - value)
-        assert(int(self) >= 0)
+        self.set((int(self) - value) % 0x10000)
         return self
 
     def __int__(self):
