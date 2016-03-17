@@ -134,7 +134,7 @@ class Memory:
                 self.enable_ram = False
 
         elif location < 0x4000: # ROM bank lower bits
-            bit_mask = 0b0001111
+            bit_mask = 0b00011111
             lower_bits = value & bit_mask
             if lower_bits == 0:
                 lower_bits = 1
@@ -142,10 +142,8 @@ class Memory:
 
         elif location < 0x6000: # ROM bank higher bits
             if self.rom_banking_mode:
-                #TODO: Where do the 2 bits go? Should I >> 5
-                bit_mask = 0b01100000
-                higher_bits = value & bit_mask
-                self.rom_bank = (self.rom_bank & ~bit_mask) | higher_bits
+                higher_bits = value & 0x00000011
+                self.rom_bank = (self.rom_bank & 0b10011111) | (higher_bits << 5)
             else:
                 bit_mask = 0b00000011
                 bits = value & bit_mask
