@@ -3,7 +3,9 @@ import interrupts
 import memory
 
 class CPU:
-    def __init__(self, mem, interrupts):
+    def __init__(self, mem, interrupts, debug_instructions, debug_registers):
+        self.debug_instructions = debug_instructions
+        self.debug_registers = debug_registers
         self.running = True
         self.mem = mem
         self.cycles = 0 # machine cycles
@@ -46,7 +48,7 @@ class CPU:
             0x7E: lambda: self.ld_rX(self.a, self.hl),
             0x0A: lambda: self.ld_rX(self.a, self.bc),
             0x1A: lambda: self.ld_rX(self.a, self.de),
-            0x3A: lambda: self.ld_rW(self.a),
+            0xFA: lambda: self.ld_rW(self.a),
             0xEA: lambda: self.ld_Wr(self.a),
 
             0x47: lambda: self.ld_rr(self.b, self.a),
@@ -437,8 +439,9 @@ class CPU:
 
         if self.op_desc == "main_loop":
             print("No op_desc for:", asmHex(instruction))
-
-        #self.displayRegisters()
+        
+        if self.debug_registers:
+            self.displayRegisters()
 
     def cb_prefix(self):
         self.pc += 1
@@ -456,12 +459,15 @@ class CPU:
             print("No op_desc for $CB+" + asmHex(instruction))
 
     def setOpDesc(self, name, arg1="", arg2=""):
-        self.op_desc = "{}: {}".format(asmHex(int(self.pc), 4), name)
-        if arg1:
-            self.op_desc += " " + arg1
-        if arg2:
-            self.op_desc += ", " + arg2
-        print(self.op_desc)
+        if self.debug_instructions:
+            self.op_desc = "{}: {}".format(asmHex(int(self.pc), 4), name)
+            if arg1:
+                self.op_desc += " " + arg1
+            if arg2:
+                self.op_desc += ", " + arg2
+            print(self.op_desc)
+        else:
+            self.op_desc = ""
 
     def displayRegisters(self):
         print("------------------------------------------------")

@@ -6,25 +6,57 @@ from cpu import CPU
 from memory import Memory
 from interrupts import Interrupts
 from lcdc import LCDC
+from header import Header
 
-def run(path):
-    path = os.path.abspath(path)
+help = """
+Usage: gametoy rompath [debug mode] [max cycles]
+
+[debug modes]: display debug info
+    values: INSTRUCTIONS, REGISTERS, HEADER, ALL
+[max cycles]: emulates this many cycles before exiting
+    values: integer >= 0
+"""
+
+def run(path, debug, max_cycles):
     with open(path, "rb") as rom_file:
-        rom = [i for i in rom_file.read() ]
+        debug_header = debug == "HEADER" or debug == "ALL"
+        debug_mem = debug == "MEM" or debug == "ALL"
+        debug_instructions = debug == "INSTRUCTIONS" or debug == "ALL"
+        debug_registers = debug == "REGISTERS" or debug == "ALL"
+        rom = [i for i in rom_file.read()]
 
-        mem = Memory(rom)
-        print("\nPC:    Operation")
+        header = Header(rom, debug_header)
+        mem = Memory(rom, header)
+        if debug_instructions:
+            print("\nPC:    Operation")
         
         interrupts = Interrupts(mem)
-        cpu = CPU(mem, interrupts)
+        cpu = CPU(mem, interrupts, debug_instructions, debug_registers)
         lcdc = LCDC(mem)
         while cpu.running:
             interrupts.update()
             cpu.run()
             lcdc.update()
 
-if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        run(sys.argv[1])
+            if max_cycles >= 0 and cpu.cycles > max_cycles:
+                cpu.running = False
+
+def main():
+    if len(sys.argv) > 1:
+        path = os.path.abspath(sys.argv[1])
+
+        if len(sys.argv) > 2:
+            debug = sys.argv[2]
+
+            if len(sys.argv) > 3:
+                max_cycles = int(sys.argv[3])
+                run(path, debug, max_cycles)
+            else:
+                run(path, debug, -1)
+        else:
+            run(path, "NONE", -1)
     else:
-        print("Usage: gametoy rompath")
+        print(help)
+
+if __name__ == "__main__":
+    main()

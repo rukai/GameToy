@@ -1,5 +1,5 @@
 class Header:
-    def __init__(self, rom):
+    def __init__(self, rom, debug):
         self.cartridgeType(rom)
         self.ramBanks(rom)
         self.romBanks(rom)
@@ -13,8 +13,9 @@ class Header:
         self.japanese = True
         if(rom[0x014A] == 1):
             self.japanese = False
-
-        self.display()
+    
+        if debug:
+            self.display()
 
     def cartridgeType(self, rom):
         "Store cartridge hardware flags"

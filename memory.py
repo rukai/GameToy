@@ -1,8 +1,6 @@
-from header import Header
-
 class Memory:
-    def __init__(self, rom):
-        self.header = Header(rom)
+    def __init__(self, rom, header):
+        self.header = header
         self.rom = rom
         self.external_ram = [0 for i in range(self.header.ram_banks * 0x4000)]
         self.internal_ram = [0 for i in range(0x4000 * 2)]
