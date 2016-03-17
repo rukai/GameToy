@@ -135,6 +135,9 @@ class CPU:
             0x31: lambda: self.ld_xw(self.sp),
             0xF9: lambda: self.ld_xx(self.sp, self.hl),
 
+            0xE2:         self.ld_Rr,
+            0xF2:         self.ld_rR,
+
             # Stack operations
             0xC5: lambda: self.push_x(self.bc),
             0xD5: lambda: self.push_x(self.de),
@@ -186,7 +189,7 @@ class CPU:
             0xD0: lambda: self.ret_f("NC"),
             0xD8: lambda: self.ret_f("C"),
 
-            # ALU
+            # ADD
             0x87: lambda: self.add_rr(self.a),
             0x80: lambda: self.add_rr(self.b),
             0x81: lambda: self.add_rr(self.c),
@@ -196,6 +199,12 @@ class CPU:
             0x85: lambda: self.add_rr(self.l),
             0x86: lambda: self.add_rX(self.hl),
             0xC6:         self.add_rb,
+
+            0x09: lambda: self.add_xx(self.bc),
+            0x19: lambda: self.add_xx(self.de),
+            0x29: lambda: self.add_xx(self.hl),
+            0x39: lambda: self.add_xx(self.sp),
+            0xE8:         self.add_xb,
 
             0x8f: lambda: self.adc_rr(self.a),
             0x88: lambda: self.adc_rr(self.b),
@@ -207,6 +216,7 @@ class CPU:
             0x8E: lambda: self.adc_rX(self.hl),
             0xCE:         self.adc_rb,
 
+            # SUB
             0x97: lambda: self.sub_rr(self.a),
             0x90: lambda: self.sub_rr(self.b),
             0x91: lambda: self.sub_rr(self.c),
@@ -227,6 +237,7 @@ class CPU:
             0x9E: lambda: self.sub_rX(self.hl),
             0xDE:         self.sub_rb,
 
+            # AND
             0xA7: lambda: self.and_r(self.a),
             0xA0: lambda: self.and_r(self.b),
             0xA1: lambda: self.and_r(self.c),
@@ -237,6 +248,7 @@ class CPU:
             0xA6: lambda: self.and_X(self.hl),
             0xE6:         self.and_b,
 
+            # OR
             0xB7: lambda: self.or_r(self.a),
             0xB0: lambda: self.or_r(self.b),
             0xB1: lambda: self.or_r(self.c),
@@ -247,6 +259,7 @@ class CPU:
             0xB6: lambda: self.or_X(self.hl),
             0xF6:         self.or_b,
 
+            # XOR
             0xAF: lambda: self.xor_r(self.a),
             0xA8: lambda: self.xor_r(self.b),
             0xA9: lambda: self.xor_r(self.c),
@@ -257,19 +270,21 @@ class CPU:
             0xAE: lambda: self.xor_X(self.hl),
             0xEE:         self.xor_b,
 
+            # INC
             0x3C: lambda: self.inc_r(self.a),
-            0x03: lambda: self.inc_r(self.b),
+            0x04: lambda: self.inc_r(self.b),
             0x0C: lambda: self.inc_r(self.c),
             0x14: lambda: self.inc_r(self.d),
             0x1C: lambda: self.inc_r(self.e),
             0x24: lambda: self.inc_r(self.h),
             0x2C: lambda: self.inc_r(self.l),
             0x03: lambda: self.inc_x(self.bc),
-            0x13: lambda: self.inc_x(self.bc),
-            0x23: lambda: self.inc_x(self.bc),
-            0x33: lambda: self.inc_x(self.bc),
+            0x13: lambda: self.inc_x(self.de),
+            0x23: lambda: self.inc_x(self.hl),
+            0x33: lambda: self.inc_x(self.sp),
             0x34:         self.inc_X,
 
+            # DEC
             0x3D: lambda: self.dec_r(self.a),
             0x05: lambda: self.dec_r(self.b),
             0x0D: lambda: self.dec_r(self.c),
@@ -277,11 +292,16 @@ class CPU:
             0x1D: lambda: self.dec_r(self.e),
             0x25: lambda: self.dec_r(self.h),
             0x2D: lambda: self.dec_r(self.l),
-            0x0B: lambda: self.inc_x(self.bc),
-            0x1B: lambda: self.inc_x(self.bc),
-            0x2B: lambda: self.inc_x(self.bc),
-            0x3B: lambda: self.inc_x(self.bc),
+            0x0B: lambda: self.dec_x(self.bc),
+            0x1B: lambda: self.dec_x(self.de),
+            0x2B: lambda: self.dec_x(self.hl),
+            0x3B: lambda: self.dec_x(self.sp),
             0x35:         self.dec_X,
+
+            # Misc ALU
+            0x27:         self.daa,
+            0x2F:         self.cpl,
+
 
             # Rotates
             0x07:         self.rlca,
@@ -489,6 +509,7 @@ class CPU:
     # To to keep the op_table aligned and for documentation purposes
     # The following are used to refer to operands:
     #   r - register
+    #   R - dereference ($FF00+register)
     #   x - 16 bit register
     #   X - dereferenced 16 bit register
     #   b - immediate byte (8 bit value)
@@ -565,6 +586,20 @@ class CPU:
         self.mem.set(W, int(r))
         self.pc += 3
         self.cycles += 4
+
+    def ld_rR(self):
+        self.setOpDesc("LD", "A", "($FF00+C)")
+        address = 0xFF00 + int(self.c)
+        self.a.set(self.mem.get(address))
+        self.pc += 1
+        self.cycles += 2
+
+    def ld_Rr(self):
+        self.setOpDesc("LD", "($FF00+C)", "A")
+        address = 0xF000 + int(self.c)
+        self.mem.set(address, int(self.a))
+        self.pc += 1
+        self.cycles += 2
 
     def ldd_rX(self):
         self.setOpDesc("LDD", "A", "({HL})")
@@ -646,7 +681,7 @@ class CPU:
 
     def cp_X(self, X):
         self.setOpDesc("CP", "({})".format(X.getName()))
-        self.cpBase(getMemory(int(X)))
+        self.cpBase(self.mem.get(int(X)))
         self.pc += 1
         self.cycles += 2
 
@@ -666,7 +701,7 @@ class CPU:
 
     def jp_X(self, X):
         self.setOpDesc("JP", "({})".format(X.getName()))
-        self.pc.set(self.mem.get(int(x)))
+        self.pc.set(self.mem.get(int(X)))
         self.cycles += 1
 
     def jp_fw(self, f):
@@ -765,7 +800,7 @@ class CPU:
 
     def add_rX(self, X):
         self.setOpDesc("ADD", "A", "({})".format(X.getName()))
-        self.addBase(getMemory(int(X)))
+        self.addBase(self.mem.get(int(X)))
         self.pc += 1
         self.cycles += 2
 
@@ -784,7 +819,7 @@ class CPU:
 
     def adc_rX(self, X):
         self.setOpDesc("ADC", "A", "({})".format(X.getName()))
-        self.addBase(getMemory(int(X)) + int(self.f.getCarry()))
+        self.addBase(self.mem.get(int(X)) + int(self.f.getCarry()))
         self.pc += 1
         self.cycles += 2
 
@@ -794,6 +829,29 @@ class CPU:
         self.addBase(b + int(self.f.getCarry()))
         self.pc += 2
         self.cycles += 2
+
+    # 16-bit ADD
+    def add_xx(self, x2):
+        self.setOpDesc("ADD", "HL", x2.getName())
+        value = (int(self.hl) + int(x2)) % 0x10000
+        self.pc += 1
+        self.cycles += 2
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(bool(value & (1 << 12)))
+        self.f.setCarry(value != int(self.hl))
+        self.hl.set(value)
+
+    def add_xb(self):
+        b = self.getImmediateSignedByte()
+        self.setOpDesc("ADD", "SP", hexasm(b))
+        value = (int(self.sp) + b) % 0x10000
+        self.pc += 2
+        self.cycles += 4
+        self.f.setZero(False)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(bool(value & (1 << 12)))
+        self.f.setCarry(value != int(self.sp))
+        self.sp.set(value)
 
     # SUB
     def subBase(self, byte):
@@ -813,7 +871,7 @@ class CPU:
 
     def sub_rX(self, X):
         self.setOpDesc("SUB", "A", "({})".format(X.getName()))
-        self.subBase(getMemory(int(X)))
+        self.subBase(self.mem.get(int(X)))
         self.pc += 1
         self.cycles += 2
 
@@ -832,7 +890,7 @@ class CPU:
 
     def sbc_rX(self, X):
         self.setOpDesc("SUB", "A", "({})".format(X.getName()))
-        self.subBase(getMemory(int(X)) - int(self.f.getCarry()))
+        self.subBase(self.mem.get(int(X)) - int(self.f.getCarry()))
         self.pc += 1
         self.cycles += 2
 
@@ -950,7 +1008,7 @@ class CPU:
 
     def inc_x(self, x):
         self.setOpDesc("INC", x.getName())
-        x.set((int(x) + 1) % 0x100)
+        x += 1
         self.pc += 1
         self.cycles += 2
 
@@ -977,10 +1035,41 @@ class CPU:
 
     def dec_x(self, x):
         self.setOpDesc("DEC", x.getName())
-        x.set((int(x) - 1) % 0x100)
+        x -= 1
         self.pc += 1
         self.cycles += 2
-    
+
+    #Misc ALU
+    def daa(self):
+        self.setOpDesc("DAA")
+
+        addend = 6
+        if self.f.getSubtract():
+            addend *= -1
+
+        value = int(self.a)
+        if (value & 0x0000FFFF) > 9 or self.f.getHalfCarry():
+            value += addend
+        if ((value & 0xFFFF0000) >> 4) > 9 or self.f.getCarry():
+            value += addend * 10
+
+        modValue = value % 0x100
+
+        self.f.setCarry(value != modValue)
+        self.a.set(modValue)
+        self.pc += 1
+        self.cycles += 1
+        self.f.setZero(value == 0)
+        self.f.setHalfCarry(False)
+
+    def cpl(self):
+        self.setOpDesc("CPL")
+        self.a.set(~int(self.a))
+        self.pc += 1
+        self.cycles += 1
+        self.f.setSubtract(True)
+        self.f.setHalfCarry(True)
+
     # Rotates
     def rotateBase(self):
         self.pc += 1
@@ -1059,7 +1148,7 @@ class CPU:
     def rlc_X(self, X):
         self.setOpDesc("RLC", "({})".format(X.getName()))
         address = int(X)
-        value = getMemory(address)
+        value = self.mem.get(address)
 
         carry = (value & 0b10000000) >> 7 #getBit(7)
         newValue = (value << 1) | int(carry)
@@ -1071,7 +1160,7 @@ class CPU:
     def rrc_X(self, X):
         self.setOpDesc("RRC", "({})".format(X.getName()))
         address = int(X)
-        value = getMemory(address)
+        value = self.mem.get(address)
 
         carry = value & 1 #getBit(0)
         newValue = (value >> 1) | (int(carry) << 7)
@@ -1083,7 +1172,7 @@ class CPU:
     def rl_X(self, X):
         self.setOpDesc("RRA", "({})".format(X.getName()))
         address = int(X)
-        value = getMemory(address)
+        value = self.mem.get(address)
 
         newValue = (value << 1) | int(self.f.getCarry())
         self.f.setCarry((value & 0b10000000) >> 7) #getBit(7)
@@ -1094,7 +1183,7 @@ class CPU:
     def rr_X(self, X):
         self.setOpDesc("RRA", "({})".format(X.getName()))
         address = int(X)
-        value = getMemory(address)
+        value = self.mem.get(address)
 
         newValue = (value >> 1) | (int(self.f.getCarry()) << 7)
         self.f.setCarry(value & 1) #getBit(0)
