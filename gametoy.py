@@ -33,13 +33,16 @@ def run(path, debug, max_cycles):
         interrupts = Interrupts(mem)
         cpu = CPU(mem, interrupts, debug_instructions, debug_registers)
         lcdc = LCDC(mem)
-        while cpu.running:
+        while cpu.run_state != "QUIT":
             interrupts.update()
-            cpu.run()
+            if cpu.run_state == "RUN":
+                cpu.run()
+            else:
+                cpu.cycles += 1
             lcdc.update()
 
             if max_cycles >= 0 and cpu.cycles > max_cycles:
-                cpu.running = False
+                cpu.run_state = "QUIT"
 
 def main():
     if len(sys.argv) > 1:

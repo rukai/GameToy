@@ -6,7 +6,7 @@ class CPU:
     def __init__(self, mem, interrupts, debug_instructions, debug_registers):
         self.debug_instructions = debug_instructions
         self.debug_registers = debug_registers
-        self.running = True
+        self.run_state = "RUN" # possible values: RUN, HALT, STOP, QUIT
         self.mem = mem
         self.cycles = 0 # machine cycles
         self.op_desc = "" # Stores a human readable string of the current operation for debugging
@@ -32,6 +32,8 @@ class CPU:
         self.op_table = {
 
             0x00:         self.nop,
+            0x76:         self.halt,
+            0x10:         self.stop,
 
             #Interrupts
             0xF3:         self.di,
@@ -190,6 +192,16 @@ class CPU:
             0xC8: lambda: self.ret_f("Z"),
             0xD0: lambda: self.ret_f("NC"),
             0xD8: lambda: self.ret_f("C"),
+
+            # Restarts
+            0xC7: lambda: self.rst_b(0x00),
+            0xCF: lambda: self.rst_b(0x08),
+            0xD7: lambda: self.rst_b(0x10),
+            0xDF: lambda: self.rst_b(0x18),
+            0xE7: lambda: self.rst_b(0x20),
+            0xEF: lambda: self.rst_b(0x28),
+            0xF7: lambda: self.rst_b(0x30),
+            0xFF: lambda: self.rst_b(0x38),
 
             # ADD
             0x87: lambda: self.add_rr(self.a),
@@ -434,7 +446,7 @@ class CPU:
             msg = "{}: Instruction {} not implemented! AAAAGH!! ... I'm dead ..."
             print(msg.format(asmHex(int(self.pc), 4), asmHex(instruction)))
             self.pc += 1
-            self.running = False
+            self.run_state = "QUIT"
             return
 
         if self.op_desc == "main_loop":
@@ -452,7 +464,7 @@ class CPU:
         else:
             msg = "{}: Instruction $CB+{} not implemented! AAAAGH!! ... I'm dead ..."
             print(msg.format(asmHex(int(self.pc), 4), asmHex(instruction)))
-            self.running = False
+            self.run_state = "QUIT"
             return
 
         if self.op_desc == "cb_prefix":
@@ -512,7 +524,7 @@ class CPU:
         assert(value <= 0xFF)
         return value
 
-    # To to keep the op_table aligned and for documentation purposes
+    # To keep the op_table aligned and for documentation purposes,
     # The following are used to refer to operands:
     #   r - register
     #   R - dereference ($FF00+register)
@@ -530,6 +542,18 @@ class CPU:
 
     def nop(self):
         self.setOpDesc("NOP")
+        self.pc += 1
+        self.cycles += 1
+
+    def halt(self):
+        self.setOpDesc("HALT")
+        self.run_state = "HALT"
+        self.pc += 1
+        self.cycles += 1
+
+    def stop(self):
+        self.setOpDesc("STOP")
+        self.run_state = "STOP"
         self.pc += 1
         self.cycles += 1
 
@@ -787,6 +811,13 @@ class CPU:
         self.retBase()
         self.cycles += 4
         self.interrupts.setEnable(True)
+
+    # Restart
+    def rst_b(self, location):
+        self.setOpDesc("RST", asmHex(location))
+        self.pc += 1
+        self.callBase(location)
+        self.cycles += 8
 
     # ADD
     def addBase(self, byte):
