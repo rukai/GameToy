@@ -363,6 +363,35 @@ class CPU:
             0x1D: lambda: self.rr_r(self.l),
             0x1E:         self.rr_X,
 
+            #Shifts
+            0x27: lambda: self.sla_r(self.a),
+            0x20: lambda: self.sla_r(self.b),
+            0x21: lambda: self.sla_r(self.c),
+            0x22: lambda: self.sla_r(self.d),
+            0x23: lambda: self.sla_r(self.e),
+            0x24: lambda: self.sla_r(self.h),
+            0x25: lambda: self.sla_r(self.l),
+            0x26: lambda: self.sla_X(self.hl),
+
+            0x2F: lambda: self.sra_r(self.a),
+            0x28: lambda: self.sra_r(self.b),
+            0x29: lambda: self.sra_r(self.c),
+            0x2A: lambda: self.sra_r(self.d),
+            0x2B: lambda: self.sra_r(self.e),
+            0x2C: lambda: self.sra_r(self.h),
+            0x2D: lambda: self.sra_r(self.l),
+            0x2E: lambda: self.sra_X(self.hl),
+
+            0x3F: lambda: self.srl_r(self.a),
+            0x38: lambda: self.srl_r(self.b),
+            0x39: lambda: self.srl_r(self.c),
+            0x3A: lambda: self.srl_r(self.d),
+            0x3B: lambda: self.srl_r(self.e),
+            0x3C: lambda: self.srl_r(self.h),
+            0x3D: lambda: self.srl_r(self.l),
+            0x3E: lambda: self.srl_X(self.hl),
+
+            # Set Bit
             0xC7: lambda: self.set_ir(0, self.a),
             0xC0: lambda: self.set_ir(0, self.b),
             0xC1: lambda: self.set_ir(0, self.c),
@@ -556,6 +585,19 @@ class CPU:
         self.run_state = "STOP"
         self.pc += 1
         self.cycles += 1
+
+    # Interrupts
+    def di(self):
+        self.setOpDesc("DI")
+        self.pc += 1
+        self.cycles += 1
+        self.interrupts.setEnable(False)
+
+    def ei(self):
+        self.setOpDesc("EI")
+        self.pc += 1
+        self.cycles += 1
+        self.interrupts.setEnable(True)
 
     # Loads
     def ld_rr(self, r1, r2):
@@ -1167,7 +1209,7 @@ class CPU:
         self.rotateBase()
 
     def rl_r(self, r):
-        self.setOpDesc("RRA", r.getName())
+        self.setOpDesc("RL", r.getName())
         newValue = (int(r) << 1) | int(self.f.getCarry())
         self.f.setCarry(r.getBit(7))
         r.set(newValue)
@@ -1175,7 +1217,7 @@ class CPU:
         self.rotateBase()
 
     def rr_r(self, r):
-        self.setOpDesc("RRA", r.getName())
+        self.setOpDesc("RR", r.getName())
         newValue = (int(r) >> 1) | (int(self.f.getCarry()) << 7)
         self.f.setCarry(r.getBit(0))
         r.set(newValue)
@@ -1228,6 +1270,76 @@ class CPU:
         self.cycles += 4
         self.rotateBase()
 
+    # Shifts
+    def sla_r(self, r):
+        self.setOpDesc("SLA", r.getName())
+        self.f.setCarry(r.getBit(7))
+        r.set((int(r) << 1) & 0xFF)
+
+        self.cycles += 2
+        self.f.setZero(int(r) == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(False)
+
+    def sla_X(self, X):
+        self.setOpDesc("SLA", "({})".format(X.getName()))
+        location = int(X)
+        b = self.mem.get(location)
+        self.f.setCarry(bool(b & 0b10000000))
+        value = (b << 1) & 0xFF
+        self.mem.set(location, value)
+
+        self.cycles += 4
+        self.f.setZero(value == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(False)
+
+    def sra_r(self, r):
+        self.setOpDesc("SRA", r.getName())
+        self.f.setCarry(r.getBit(0))
+        r.set((int(r) >> 1) | (int(r) & 0b10000000))
+
+        self.cycles += 2
+        self.f.setZero(int(r) == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(False)
+
+    def sra_X(self, X):
+        self.setOpDesc("SRA", "({})".format(X.getName()))
+        location = int(X)
+        b = self.mem.get(location)
+        self.f.setCarry(bool(b & 1))
+        value = (b >> 1) | (b & 0b10000000)
+        self.mem.set(location, value)
+
+        self.cycles += 4
+        self.f.setZero(value == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(False)
+
+    def srl_r(self, r):
+        self.setOpDesc("SRL", r.getName())
+        self.f.setCarry(r.getBit(0))
+        r.set(int(r) >> 1)
+
+        self.cycles += 2
+        self.f.setZero(int(r) == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(False)
+
+    def srl_X(self, X):
+        self.setOpDesc("SRL", "({})".format(X.getName()))
+        location = int(X)
+        b = self.mem.get(location)
+        self.f.setCarry(bool(b & 1))
+        value = b >> 1
+        self.mem.set(location, value)
+
+        self.cycles += 4
+        self.f.setZero(value == 0)
+        self.f.setSubtract(False)
+        self.f.setHalfCarry(False)
+
     # Set
     def set_ir(self, i, r):
         self.setOpDesc("SET", str(i), r.getName())
@@ -1243,19 +1355,6 @@ class CPU:
         setMemory(address, value)
         self.cycles += 4
         self.pc += 1
-
-    # Interrupts
-    def di(self):
-        self.setOpDesc("DI")
-        self.pc += 1
-        self.cycles += 1
-        self.interrupts.setEnable(False)
-
-    def ei(self):
-        self.setOpDesc("EI")
-        self.pc += 1
-        self.cycles += 1
-        self.interrupts.setEnable(True)
 
 if __name__ == "__main__":
     import doctest
