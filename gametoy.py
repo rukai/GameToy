@@ -19,16 +19,20 @@ Usage: gametoy rompath [debug mode] [max cycles]
 
 def run(path, debug, max_cycles):
     with open(path, "rb") as rom_file:
+        debug_title = debug == "TITLE"
         debug_header = debug == "HEADER" or debug == "ALL"
         debug_mem = debug == "MEM" or debug == "ALL"
         debug_instructions = debug == "INSTRUCTIONS" or debug == "ALL"
         debug_registers = debug == "REGISTERS" or debug == "ALL"
         rom = [i for i in rom_file.read()]
-
+        
+        
         header = Header(rom, debug_header)
         mem = Memory(rom, header)
+        if debug_title:
+            print("Title: " + header.name)
         if debug_instructions:
-            print("\nPC:    Operation")
+            print("PC:    Operation")
         
         interrupts = Interrupts(mem)
         cpu = CPU(mem, interrupts, debug_instructions, debug_registers)
