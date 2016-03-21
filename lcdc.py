@@ -58,10 +58,10 @@ class LCDC:
         self.obp1_color2 = 0
         self.obp1_color3 = 0
 
-    def update(self):
-        self.mode_counter += 1
+    def update(self, cycles):
+        self.mode_counter += cycles
         if self.mode == 0:
-            if self.mode_counter == 204:
+            if self.mode_counter >= 204:
                 self.mode_counter = 0
                 self.ly += 1
                 if self.ly == 144: #Reached end of screen
@@ -69,18 +69,18 @@ class LCDC:
                 else:
                     self.mode = 2
         elif self.mode == 1:
-            if self.mode_counter == 4560:
+            if self.mode_counter >= 4560:
                 self.mode_counter = 0
                 self.mode = 2
                 self.ly = 0
             if self.mode_counter % 456 == 0 and self.mode_counter != 0:
                 self.ly += 1
         elif self.mode == 2:
-            if self.mode_counter == 80:
+            if self.mode_counter >= 80:
                 self.mode_counter = 0
                 self.mode = 3
         elif self.mode == 3:
-            if self.mode_counter == 172:
+            if self.mode_counter >= 172:
                 self.mode_counter = 0
                 self.mode = 0
         else:

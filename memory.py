@@ -24,9 +24,13 @@ class Memory:
             self.writeToROM = self.writeToMBC5
         
 
-    def setupIO(self, lcdc, interrupts):
+    def setupIO(self, lcdc, interrupts, timer):
         self.io_read = {
             0x0F: interrupts.readIF,
+            0x04: timer.readDIV,
+            0x05: timer.readTIMA,
+            0x06: timer.readTMA,
+            0x07: timer.readTAC,
             0x40: lcdc.readLCDC,
             0x41: lcdc.readSTAT,
             0x42: lcdc.readSCY,
@@ -43,6 +47,10 @@ class Memory:
 
         self.io_write = {
             0x0F: interrupts.writeIF,
+            0x04: timer.writeDIV,
+            0x05: timer.writeTIMA,
+            0x06: timer.writeTMA,
+            0x07: timer.writeTAC,
             0x40: lcdc.writeLCDC,
             0x41: lcdc.writeSTAT,
             0x42: lcdc.writeSCY,
@@ -60,9 +68,9 @@ class Memory:
         self.loadIOvalues()
 
     def loadIOvalues(self):
-        #self.write(0xFF05, 0x00)
-        #self.write(0xFF06, 0x00)
-        #self.write(0xFF07, 0x00)
+        self.write(0xFF05, 0x00)
+        self.write(0xFF06, 0x00)
+        self.write(0xFF07, 0x00)
         #self.write(0xFF10, 0x80)
         #self.write(0xFF11, 0xBF)
         #self.write(0xFF12, 0xF3)
@@ -161,6 +169,7 @@ class Memory:
             if io_location in self.io_write:
                 self.io_write[io_location](value)
             else:
+                print(hex(io_location))
                 assert(False)
 
         elif location < 0xFFFF:

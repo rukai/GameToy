@@ -524,6 +524,11 @@ class CPU:
         print("sp:", asmHex(int(self.sp), 4))
         print("------------------------------------------------")
 
+    def popCycles(self):
+        value = self.cycles
+        self.cycles = 0
+        return value
+
     def checkFlag(self, flagType):
         if flagType == "NZ":
             return not self.f.getZero()

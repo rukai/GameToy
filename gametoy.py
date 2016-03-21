@@ -7,6 +7,7 @@ from memory import Memory
 from interrupts import Interrupts
 from lcdc import LCDC
 from header import Header
+from timer import Timer
 
 help = """
 Usage: gametoy rompath [debug mode] [max cycles]
@@ -36,17 +37,23 @@ def run(path, debug, max_cycles):
         
         interrupts = Interrupts()
         cpu = CPU(mem, interrupts, debug_instructions, debug_registers)
+        timer = Timer(interrupts)
         lcdc = LCDC(mem, interrupts)
-        mem.setupIO(lcdc, interrupts)
+        mem.setupIO(lcdc, interrupts, timer)
+        total_cycles = 0
+
         while cpu.run_state != "QUIT":
             interrupts.update()
             if cpu.run_state == "RUN":
                 cpu.run()
             else:
                 cpu.cycles += 1
-            lcdc.update()
 
-            if max_cycles >= 0 and cpu.cycles > max_cycles:
+            timer.update(cpu.cycles)
+            lcdc.update(cpu.cycles)
+
+            total_cycles += cpu.popCycles()
+            if max_cycles >= 0 and total_cycles > max_cycles:
                 cpu.run_state = "QUIT"
 
 def main():
