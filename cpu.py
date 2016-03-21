@@ -467,7 +467,7 @@ class CPU:
 
     def run(self):
         self.op_desc = "main_loop" #dummy value used to check if set
-        instruction = self.mem.get(int(self.pc))
+        instruction = self.mem.read(int(self.pc))
 
         if instruction in self.op_table:
             self.op_table[instruction]()
@@ -539,17 +539,17 @@ class CPU:
             assert(False)
 
     def getImmediateWord(self):
-        value = self.mem.get(int(self.pc)+1) + (self.mem.get(int(self.pc)+2) << 8)
+        value = self.mem.read(int(self.pc)+1) + (self.mem.read(int(self.pc)+2) << 8)
         assert(value <= 0xFFFF)
         return value
 
     def getImmediateByte(self):
-        value = self.mem.get(int(self.pc)+1)
+        value = self.mem.read(int(self.pc)+1)
         assert(value <= 0xFF)
         return value
 
     def getImmediateSignedByte(self):
-        value = self.mem.getSigned(int(self.pc)+1)
+        value = self.mem.readSigned(int(self.pc)+1)
         assert(value <= 0xFF)
         return value
 
@@ -609,13 +609,13 @@ class CPU:
     def ld_rW(self, r):
         W = self.getImmediateWord()
         self.setOpDesc("LD", r.getName(), "({})".format(asmHex(W)))
-        r.set(self.mem.get(W))
+        r.set(self.mem.read(W))
         self.pc += 3
         self.cycles += 4
 
     def ld_rX(self, r, X):
         self.setOpDesc("LD", r.getName(), "({})".format(X.getName()))
-        r.set(self.mem.get(int(X)))
+        r.set(self.mem.read(int(X)))
         self.pc += 1
         self.cycles += 2
 
@@ -629,13 +629,13 @@ class CPU:
     def ld_Xb(self, X):
         b = self.getImmediateByte()
         self.setOpDesc("LD", "({})".format(X.getName()), asmHex(b))
-        self.mem.set(int(X), b)
+        self.mem.write(int(X), b)
         self.pc += 2
         self.cycles += 3
 
     def ld_Xr(self, X, r):
         self.setOpDesc("LD",  "({})".format(X.getName()), r.getName())
-        self.mem.set(int(X), int(r))
+        self.mem.write(int(X), int(r))
         self.pc += 1
         self.cycles += 2
 
@@ -655,48 +655,48 @@ class CPU:
     def ld_Wr(self, r):
         W = self.getImmediateWord()
         self.setOpDesc("LD", "({})".format(asmHex(W, 4)), r.getName())
-        self.mem.set(W, int(r))
+        self.mem.write(W, int(r))
         self.pc += 3
         self.cycles += 4
 
     def ld_rR(self):
         self.setOpDesc("LD", "A", "($FF00+C)")
         address = 0xFF00 + int(self.c)
-        self.a.set(self.mem.get(address))
+        self.a.set(self.mem.read(address))
         self.pc += 1
         self.cycles += 2
 
     def ld_Rr(self):
         self.setOpDesc("LD", "($FF00+C)", "A")
         address = 0xF000 + int(self.c)
-        self.mem.set(address, int(self.a))
+        self.mem.write(address, int(self.a))
         self.pc += 1
         self.cycles += 2
 
     def ldd_rX(self):
-        self.setOpDesc("LDD", "A", "({HL})")
-        self.a.set(self.mem.get(int(self.hl)))
+        self.setOpDesc("LDD", "A", "(HL)")
+        self.a.set(self.mem.read(int(self.hl)))
         self.hl -= 1
         self.pc += 1
         self.cycles += 2
 
     def ldd_Xr(self):
         self.setOpDesc("LDD", "(HL)", "A")
-        self.mem.set(int(self.hl), int(self.a))
+        self.mem.write(int(self.hl), int(self.a))
         self.hl -= 1
         self.pc += 1
         self.cycles += 2
 
     def ldi_rX(self):
-        self.setOpDesc("LDI", "A", "({HL})")
-        self.a.set(self.mem.get(int(self.hl)))
+        self.setOpDesc("LDI", "A", "(HL)")
+        self.a.set(self.mem.read(int(self.hl)))
         self.hl += 1
         self.pc += 1
         self.cycles += 2
 
     def ldi_Xr(self):
         self.setOpDesc("LDI", "(HL)", "A")
-        self.mem.set(int(self.hl), int(self.a))
+        self.mem.write(int(self.hl), int(self.a))
         self.hl += 1
         self.pc += 1
         self.cycles += 2
@@ -705,7 +705,7 @@ class CPU:
         b = self.getImmediateByte()
         self.setOpDesc("LDH", "($FF00+{})".format(asmHex(b)), "A")
         address = 0xFF00 + b
-        self.mem.set(address, int(self.a))
+        self.mem.write(address, int(self.a))
         self.pc += 2
         self.cycles += 3
 
@@ -713,7 +713,7 @@ class CPU:
         b = self.getImmediateByte()
         address = 0xFF00 + b
         self.setOpDesc("LDH", "A", "($FF00+{})".format(asmHex(b)))
-        self.a.set(self.mem.get(address))
+        self.a.set(self.mem.read(address))
         self.pc += 2
         self.cycles += 3
 
@@ -721,17 +721,17 @@ class CPU:
     def push_x(self, x):
         self.setOpDesc("PUSH", x.getName())
         self.sp -= 1
-        self.mem.set(int(self.sp), int(x.r1))
+        self.mem.write(int(self.sp), int(x.r1))
         self.sp -= 1
-        self.mem.set(int(self.sp), int(x.r2))
+        self.mem.write(int(self.sp), int(x.r2))
         self.pc += 1
         self.cycles += 4
 
     def pop_x(self, x):
         self.setOpDesc("POP", x.getName())
-        x.r2.set(self.mem.get(int(self.sp)))
+        x.r2.set(self.mem.read(int(self.sp)))
         self.sp += 1
-        x.r1.set(self.mem.get(int(self.sp)))
+        x.r1.set(self.mem.read(int(self.sp)))
         self.sp += 1
         self.pc += 1
         self.cycles += 3
@@ -753,7 +753,7 @@ class CPU:
 
     def cp_X(self, X):
         self.setOpDesc("CP", "({})".format(X.getName()))
-        self.cpBase(self.mem.get(int(X)))
+        self.cpBase(self.mem.read(int(X)))
         self.pc += 1
         self.cycles += 2
 
@@ -773,7 +773,7 @@ class CPU:
 
     def jp_X(self, X):
         self.setOpDesc("JP", "({})".format(X.getName()))
-        self.pc.set(self.mem.get(int(X)))
+        self.pc.set(self.mem.read(int(X)))
         self.cycles += 1
 
     def jp_fw(self, f):
@@ -803,9 +803,9 @@ class CPU:
     # Calls
     def callBase(self, location):
         self.sp -= 1
-        self.mem.set(int(self.sp), int(self.pc.r1))
+        self.mem.write(int(self.sp), int(self.pc.r1))
         self.sp -= 1
-        self.mem.set(int(self.sp), int(self.pc.r2))
+        self.mem.write(int(self.sp), int(self.pc.r2))
         self.pc.set(location)
 
     def call_w(self):
@@ -829,9 +829,9 @@ class CPU:
 
     # Returns
     def retBase(self):
-        self.pc.r2.set(self.mem.get(int(self.sp)))
+        self.pc.r2.set(self.mem.read(int(self.sp)))
         self.sp += 1
-        self.pc.r1.set(self.mem.get(int(self.sp)))
+        self.pc.r1.set(self.mem.read(int(self.sp)))
         self.sp += 1
 
     def ret(self):
@@ -879,7 +879,7 @@ class CPU:
 
     def add_rX(self, X):
         self.setOpDesc("ADD", "A", "({})".format(X.getName()))
-        self.addBase(self.mem.get(int(X)))
+        self.addBase(self.mem.read(int(X)))
         self.pc += 1
         self.cycles += 2
 
@@ -898,7 +898,7 @@ class CPU:
 
     def adc_rX(self, X):
         self.setOpDesc("ADC", "A", "({})".format(X.getName()))
-        self.addBase(self.mem.get(int(X)) + int(self.f.getCarry()))
+        self.addBase(self.mem.read(int(X)) + int(self.f.getCarry()))
         self.pc += 1
         self.cycles += 2
 
@@ -950,7 +950,7 @@ class CPU:
 
     def sub_rX(self, X):
         self.setOpDesc("SUB", "A", "({})".format(X.getName()))
-        self.subBase(self.mem.get(int(X)))
+        self.subBase(self.mem.read(int(X)))
         self.pc += 1
         self.cycles += 2
 
@@ -969,7 +969,7 @@ class CPU:
 
     def sbc_rX(self, X):
         self.setOpDesc("SUB", "A", "({})".format(X.getName()))
-        self.subBase(self.mem.get(int(X)) - int(self.f.getCarry()))
+        self.subBase(self.mem.read(int(X)) - int(self.f.getCarry()))
         self.pc += 1
         self.cycles += 2
 
@@ -997,7 +997,7 @@ class CPU:
 
     def and_X(self, X):
         self.setOpDesc("AND", "({})".format(X.getName()))
-        value = int(self.a) & self.mem.get(int(X))
+        value = int(self.a) & self.mem.read(int(X))
         self.a.set(value)
         self.pc += 1
         self.cycles += 2
@@ -1023,7 +1023,7 @@ class CPU:
 
     def or_X(self, X):
         self.setOpDesc("OR", "({})".format(X.getName()))
-        value = int(self.a) | self.mem.get(int(X))
+        value = int(self.a) | self.mem.read(int(X))
         self.a.set(value)
         self.pc += 1
         self.cycles += 2
@@ -1049,7 +1049,7 @@ class CPU:
 
     def xor_X(self, X):
         self.setOpDesc("XOR", "({})".format(X.getName()))
-        xor = int(self.a) ^ self.mem.get(int(X))
+        xor = int(self.a) ^ self.mem.read(int(X))
         self.a.set(xor)
         self.pc += 1
         self.cycles += 2
@@ -1077,8 +1077,8 @@ class CPU:
 
     def inc_X(self, X):
         self.setOpDesc("INC", "(HL)")
-        newValue = (self.mem.get(int(self.hl)) + 1) % 0x100
-        self.mem.set(int(self.hl), newValue)
+        newValue = (self.mem.read(int(self.hl)) + 1) % 0x100
+        self.mem.write(int(self.hl), newValue)
         self.pc += 1
         self.cycles += 3
         self.f.setZero(newValue == 0)
@@ -1104,8 +1104,8 @@ class CPU:
 
     def dec_X(self):
         self.setOpDesc("DEC", "(HL)")
-        newValue = (self.mem.get(int(self.hl)) -1) % 0x100
-        self.mem.set(int(self.hl), newValue)
+        newValue = (self.mem.read(int(self.hl)) -1) % 0x100
+        self.mem.write(int(self.hl), newValue)
         self.pc += 1
         self.cycles += 3
         self.f.setZero(newValue == 0)
@@ -1227,7 +1227,7 @@ class CPU:
     def rlc_X(self, X):
         self.setOpDesc("RLC", "({})".format(X.getName()))
         address = int(X)
-        value = self.mem.get(address)
+        value = self.mem.read(address)
 
         carry = (value & 0b10000000) >> 7 #getBit(7)
         newValue = (value << 1) | int(carry)
@@ -1239,7 +1239,7 @@ class CPU:
     def rrc_X(self, X):
         self.setOpDesc("RRC", "({})".format(X.getName()))
         address = int(X)
-        value = self.mem.get(address)
+        value = self.mem.read(address)
 
         carry = value & 1 #getBit(0)
         newValue = (value >> 1) | (int(carry) << 7)
@@ -1251,7 +1251,7 @@ class CPU:
     def rl_X(self, X):
         self.setOpDesc("RRA", "({})".format(X.getName()))
         address = int(X)
-        value = self.mem.get(address)
+        value = self.mem.read(address)
 
         newValue = (value << 1) | int(self.f.getCarry())
         self.f.setCarry((value & 0b10000000) >> 7) #getBit(7)
@@ -1262,7 +1262,7 @@ class CPU:
     def rr_X(self, X):
         self.setOpDesc("RRA", "({})".format(X.getName()))
         address = int(X)
-        value = self.mem.get(address)
+        value = self.mem.read(address)
 
         newValue = (value >> 1) | (int(self.f.getCarry()) << 7)
         self.f.setCarry(value & 1) #getBit(0)
@@ -1284,10 +1284,10 @@ class CPU:
     def sla_X(self, X):
         self.setOpDesc("SLA", "({})".format(X.getName()))
         location = int(X)
-        b = self.mem.get(location)
+        b = self.mem.read(location)
         self.f.setCarry(bool(b & 0b10000000))
         value = (b << 1) & 0xFF
-        self.mem.set(location, value)
+        self.mem.write(location, value)
 
         self.cycles += 4
         self.f.setZero(value == 0)
@@ -1307,10 +1307,10 @@ class CPU:
     def sra_X(self, X):
         self.setOpDesc("SRA", "({})".format(X.getName()))
         location = int(X)
-        b = self.mem.get(location)
+        b = self.mem.read(location)
         self.f.setCarry(bool(b & 1))
         value = (b >> 1) | (b & 0b10000000)
-        self.mem.set(location, value)
+        self.mem.write(location, value)
 
         self.cycles += 4
         self.f.setZero(value == 0)
@@ -1330,10 +1330,10 @@ class CPU:
     def srl_X(self, X):
         self.setOpDesc("SRL", "({})".format(X.getName()))
         location = int(X)
-        b = self.mem.get(location)
+        b = self.mem.read(location)
         self.f.setCarry(bool(b & 1))
         value = b >> 1
-        self.mem.set(location, value)
+        self.mem.write(location, value)
 
         self.cycles += 4
         self.f.setZero(value == 0)
@@ -1350,7 +1350,7 @@ class CPU:
     def set_iX(self, i, X):
         self.setOpDesc("SET", str(i), "({})".format(X.getName()))
         address = int(X)
-        value = self.mem.get(address)
+        value = self.mem.read(address)
         value = value | (1 << i)
         setMemory(address, value)
         self.cycles += 4

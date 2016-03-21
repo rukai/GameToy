@@ -12,7 +12,7 @@ help = """
 Usage: gametoy rompath [debug mode] [max cycles]
 
 [debug modes]: display debug info
-    values: INSTRUCTIONS, REGISTERS, HEADER, ALL
+    values: NONE, INSTRUCTIONS, REGISTERS, HEADER, TITLE, ALL
 [max cycles]: emulates this many cycles before exiting
     values: integer >= 0
 """
@@ -36,7 +36,8 @@ def run(path, debug, max_cycles):
         
         interrupts = Interrupts(mem)
         cpu = CPU(mem, interrupts, debug_instructions, debug_registers)
-        lcdc = LCDC(mem)
+        lcdc = LCDC(mem, interrupts)
+        mem.setupIO(lcdc)
         while cpu.run_state != "QUIT":
             interrupts.update()
             if cpu.run_state == "RUN":

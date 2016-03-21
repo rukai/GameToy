@@ -13,12 +13,12 @@ class Interrupts:
         ]
 
     def setIFbit(self, bit):
-        value = self.mem.get(0xFF0F)
-        self.mem.set(0xFF0F, value | (1 << bit))
+        value = self.mem.read(0xFF0F)
+        self.mem.write(0xFF0F, value | (1 << bit))
 
     def clearIFbit(self, bit):
-        value = self.mem.get(0xFF0F)
-        self.mem.set(0xFF0F, value & (~(1 << bit)))
+        value = self.mem.read(0xFF0F)
+        self.mem.write(0xFF0F, value & (~(1 << bit)))
 
     def setCall(self, call):
         self.call = call
@@ -35,8 +35,8 @@ class Interrupts:
             self.enable = self.enable_new
         
         if self.enable:
-            ie = self.mem.get(0xFFFF)
-            iflag = self.mem.get(0xFF0F)
+            ie = self.mem.read(0xFFFF)
+            iflag = self.mem.read(0xFF0F)
             check = ie & iflag
 
             for i, location in enumerate(self.locations):

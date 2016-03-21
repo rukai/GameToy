@@ -6,7 +6,7 @@ class Memory:
         self.internal_ram = [0 for i in range(0x4000 * 2)]
         self.vram = [0 for i in range(0x2000)]
         self.oam = [0 for i in range(0xA0)]
-        self.hram = [0 for i in range(0x100)]
+        self.hram = [0 for i in range(0x80)]
         self.rom_bank = 1
         self.cart_ram_bank = 1
         self.enable_ram = False
@@ -22,39 +22,70 @@ class Memory:
             self.writeToROM = self.writeToMBC4
         elif self.header.mbc == "MBC5":
             self.writeToROM = self.writeToMBC5
+        
+        self.write(0xFFFF, 0x00)
 
-        self.setDefaultValues()
+    def setupIO(self, lcdc):
+        self.io_read = {
+            0x40: lcdc.readLCDC,
+            0x41: lcdc.readSTAT,
+            0x42: lcdc.readSCY,
+            0x43: lcdc.readSCX,
+            0x44: lcdc.readLY,
+            0x45: lcdc.readLYC,
+            0x47: lcdc.readBGP,
+            0x48: lcdc.readOBP0,
+            0x49: lcdc.readOBP1,
+            0x4A: lcdc.readWY,
+            0x4B: lcdc.readWX,
+        }
 
-    def setDefaultValues(self):
-        self.set(0xFF05, 0x00)
-        self.set(0xFF06, 0x00)
-        self.set(0xFF07, 0x00)
-        self.set(0xFF10, 0x80)
-        self.set(0xFF11, 0xBF)
-        self.set(0xFF12, 0xF3)
-        self.set(0xFF14, 0xBF)
-        self.set(0xFF16, 0x3F)
-        self.set(0xFF17, 0x00)
-        self.set(0xFF19, 0xBF)
-        self.set(0xFF1A, 0xFF)
-        self.set(0xFF1B, 0x00)
-        self.set(0xFF1C, 0x00)
-        self.set(0xFF1E, 0xBF)
-        self.set(0xFF20, 0x77)
-        self.set(0xFF25, 0xF3)
-        self.set(0xFF26, 0xF1)
-        self.set(0xFF40, 0x91)
-        self.set(0xFF42, 0x00)
-        self.set(0xFF43, 0x00)
-        self.set(0xFF45, 0x00)
-        self.set(0xFF47, 0xFC)
-        self.set(0xFF48, 0xFF)
-        self.set(0xFF49, 0xFF)
-        self.set(0xFF4A, 0x00)
-        self.set(0xFF4B, 0x00)
-        self.set(0xFFFF, 0x00)
+        self.io_write = {
+            0x40: lcdc.writeLCDC,
+            0x41: lcdc.writeSTAT,
+            0x42: lcdc.writeSCY,
+            0x43: lcdc.writeSCX,
+            0x44: lcdc.writeLY,
+            0x45: lcdc.writeLYC,
+            0x47: lcdc.writeBGP,
+            0x48: lcdc.writeOBP0,
+            0x49: lcdc.writeOBP1,
+            0x4A: lcdc.writeWY,
+            0x4B: lcdc.writeWX,
+        }
 
-    def get(self, location):
+        self.loadIOvalues()
+
+
+    def loadIOvalues(self):
+        #self.write(0xFF05, 0x00)
+        #self.write(0xFF06, 0x00)
+        #self.write(0xFF07, 0x00)
+        #self.write(0xFF10, 0x80)
+        #self.write(0xFF11, 0xBF)
+        #self.write(0xFF12, 0xF3)
+        #self.write(0xFF14, 0xBF)
+        #self.write(0xFF16, 0x3F)
+        #self.write(0xFF17, 0x00)
+        #self.write(0xFF19, 0xBF)
+        #self.write(0xFF1A, 0xFF)
+        #self.write(0xFF1B, 0x00)
+        #self.write(0xFF1C, 0x00)
+        #self.write(0xFF1E, 0xBF)
+        #self.write(0xFF20, 0x77)
+        #self.write(0xFF25, 0xF3)
+        #self.write(0xFF26, 0xF1)
+        self.write(0xFF40, 0x91)
+        self.write(0xFF42, 0x00)
+        self.write(0xFF43, 0x00)
+        self.write(0xFF45, 0x00)
+        self.write(0xFF47, 0xFC)
+        self.write(0xFF48, 0xFF)
+        self.write(0xFF49, 0xFF)
+        self.write(0xFF4A, 0x00)
+        self.write(0xFF4B, 0x00)
+
+    def read(self, location):
         if location < 0x4000: # 16KB ROM Bank 0
             return self.rom[location]
 
@@ -81,20 +112,25 @@ class Memory:
         elif location < 0xFF00: # Not usable
             assert(False)
 
-        elif location <= 0xFFFF: #255B High ram
-            return self.hram[location - 0xFF00]
+        elif location < 0xFF80: #I/O Ports
+            io_location = location - 0xFF00
+            if io_location in self.io_read:
+                return self.io_read[io_location]()
+            else:
+                return 0 #assert(False)
 
+        elif location <= 0xFFFF: #32B High ram
+            return self.hram[location - 0xFF80]
         else:
             assert(False)
 
-    def getSigned(self, location):
-        value = self.get(location)
+    def readSigned(self, location):
+        value = self.read(location)
         if value & 0b10000000:
             value = value - 0b100000000
         return value
 
-    def set(self, location, value):
-
+    def write(self, location, value):
         if location < 0x8000:
             self.writeToROM(location, value)
         elif location < 0xA000:
@@ -117,8 +153,12 @@ class Memory:
         elif location < 0xFF00:
             assert(False)
 
+        elif location < 0xFF80:
+            if location in self.io_write:
+                self.io_write[location - 0xFF00](value)
+
         elif location <= 0xFFFF:
-            self.hram[location - 0xFF00] = value
+            self.hram[location - 0xFF80] = value
 
     def writeToROM(self, location, value):
         print("Cannot write to {}".format(self.header.mbc))
