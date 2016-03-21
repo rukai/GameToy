@@ -788,16 +788,15 @@ class CPU:
     def jr_b(self):
         b = self.getImmediateSignedByte()
         self.setOpDesc("JR", asmHex(b))
-        self.pc += b
+        self.pc += 2 + b
         self.cycles += 2
 
     def jr_fb(self, f):
         b = self.getImmediateSignedByte()
         self.setOpDesc("JR", f, asmHex(b))
+        self.pc += 2
         if self.checkFlag(f):
             self.pc += b
-        else:
-            self.pc += 2
         self.cycles += 2
 
     # Calls
