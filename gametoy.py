@@ -34,10 +34,10 @@ def run(path, debug, max_cycles):
         if debug_instructions:
             print("PC:    Operation")
         
-        interrupts = Interrupts(mem)
+        interrupts = Interrupts()
         cpu = CPU(mem, interrupts, debug_instructions, debug_registers)
         lcdc = LCDC(mem, interrupts)
-        mem.setupIO(lcdc)
+        mem.setupIO(lcdc, interrupts)
         while cpu.run_state != "QUIT":
             interrupts.update()
             if cpu.run_state == "RUN":

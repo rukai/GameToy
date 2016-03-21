@@ -23,10 +23,10 @@ class Memory:
         elif self.header.mbc == "MBC5":
             self.writeToROM = self.writeToMBC5
         
-        self.write(0xFFFF, 0x00)
 
-    def setupIO(self, lcdc):
+    def setupIO(self, lcdc, interrupts):
         self.io_read = {
+            0x0F: interrupts.readIF,
             0x40: lcdc.readLCDC,
             0x41: lcdc.readSTAT,
             0x42: lcdc.readSCY,
@@ -38,9 +38,11 @@ class Memory:
             0x49: lcdc.readOBP1,
             0x4A: lcdc.readWY,
             0x4B: lcdc.readWX,
+            0xFF: interrupts.readIE,
         }
 
         self.io_write = {
+            0x0F: interrupts.writeIF,
             0x40: lcdc.writeLCDC,
             0x41: lcdc.writeSTAT,
             0x42: lcdc.writeSCY,
@@ -52,10 +54,10 @@ class Memory:
             0x49: lcdc.writeOBP1,
             0x4A: lcdc.writeWY,
             0x4B: lcdc.writeWX,
+            0xFF: interrupts.writeIE,
         }
 
         self.loadIOvalues()
-
 
     def loadIOvalues(self):
         #self.write(0xFF05, 0x00)
@@ -84,6 +86,7 @@ class Memory:
         self.write(0xFF49, 0xFF)
         self.write(0xFF4A, 0x00)
         self.write(0xFF4B, 0x00)
+        self.write(0xFFFF, 0x00)
 
     def read(self, location):
         if location < 0x4000: # 16KB ROM Bank 0
@@ -112,12 +115,12 @@ class Memory:
         elif location < 0xFF00: # Not usable
             assert(False)
 
-        elif location < 0xFF80: #I/O Ports
+        elif location < 0xFF80 or location == 0xFFFF: #I/O Ports
             io_location = location - 0xFF00
             if io_location in self.io_read:
                 return self.io_read[io_location]()
             else:
-                return 0 #assert(False)
+                assert(False)
 
         elif location <= 0xFFFF: #32B High ram
             return self.hram[location - 0xFF80]
@@ -153,11 +156,14 @@ class Memory:
         elif location < 0xFF00:
             assert(False)
 
-        elif location < 0xFF80:
-            if location in self.io_write:
-                self.io_write[location - 0xFF00](value)
+        elif location < 0xFF80 or location == 0xFFFF:
+            io_location = location - 0xFF00
+            if io_location in self.io_write:
+                self.io_write[io_location](value)
+            else:
+                assert(False)
 
-        elif location <= 0xFFFF:
+        elif location < 0xFFFF:
             self.hram[location - 0xFF80] = value
 
     def writeToROM(self, location, value):

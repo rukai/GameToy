@@ -1,9 +1,10 @@
 class Interrupts:
-    def __init__(self, memory):
+    def __init__(self):
         self.counter = 0
         self.enable_new = True
         self.enable = True
-        self.mem = memory
+        self.iflag = 0
+        self.ie = 0
         self.locations = [
             0x0040, #V-Blank
             0x0048, #LCDC
@@ -13,12 +14,10 @@ class Interrupts:
         ]
 
     def setIFbit(self, bit):
-        value = self.mem.read(0xFF0F)
-        self.mem.write(0xFF0F, value | (1 << bit))
+        self.iflag |= (1 << bit)
 
     def clearIFbit(self, bit):
-        value = self.mem.read(0xFF0F)
-        self.mem.write(0xFF0F, value & (~(1 << bit)))
+        self.iflag &= (~(1 << bit))
 
     def setCall(self, call):
         self.call = call
@@ -35,9 +34,7 @@ class Interrupts:
             self.enable = self.enable_new
         
         if self.enable:
-            ie = self.mem.read(0xFFFF)
-            iflag = self.mem.read(0xFF0F)
-            check = ie & iflag
+            check = self.ie & self.iflag
 
             for i, location in enumerate(self.locations):
                 if check & (1 << i):
@@ -60,3 +57,15 @@ class Interrupts:
 
     def callJoypadToggle(self):
         self.setIFbit(4)
+
+    def readIF(self):
+        return self.iflag
+
+    def writeIF(self, value):
+        self.iflag = value
+
+    def readIE(self):
+        return self.ie
+
+    def writeIE(self, value):
+        self.ie = value

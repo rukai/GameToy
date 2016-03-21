@@ -1,6 +1,7 @@
 class LCDC:
     def __init__(self, mem, interrupts):
         self.mem = mem
+        self.interrupts = interrupts
 
         # FF40 bits 7-0
         # w - window
@@ -93,9 +94,9 @@ class LCDC:
         hblank_interrupt = self.mode == 0 and self.enable_hblank_interrupt
 
         if lyc_interrupt or lyc_interrupt or oam_interrupt or hblank_interrupt:
-            interrupts.callLCDC()
+            self.interrupts.callLCDC()
         elif self.mode == 1 and self.enable_vblank_interrupt:
-            interrupt.callVBlank()
+            self.interrupts.callVBlank()
 
     # LCD Control
     def readLCDC(self):
@@ -109,7 +110,7 @@ class LCDC:
         value |= int(self.bg_display)                 << 0
         return value
 
-    def writeLCDC(self):
+    def writeLCDC(self, value):
         self.display_enable             = bool(value & 0b10000000)
         self.w_tile_map_display_select  = bool(value & 0b01000000)
         self.w_display_enable           = bool(value & 0b00100000)
