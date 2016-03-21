@@ -8,6 +8,7 @@ from interrupts import Interrupts
 from lcdc import LCDC
 from header import Header
 from timer import Timer
+from sound import Sound
 
 help = """
 Usage: gametoy rompath [debug mode] [max cycles]
@@ -38,8 +39,9 @@ def run(path, debug, max_cycles):
         interrupts = Interrupts()
         cpu = CPU(mem, interrupts, debug_instructions, debug_registers)
         timer = Timer(interrupts)
+        sound = Sound()
         lcdc = LCDC(mem, interrupts)
-        mem.setupIO(lcdc, interrupts, timer)
+        mem.setupIO(lcdc, interrupts, timer, sound)
         total_cycles = 0
 
         while cpu.run_state != "QUIT":

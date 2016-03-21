@@ -24,13 +24,36 @@ class Memory:
             self.writeToROM = self.writeToMBC5
         
 
-    def setupIO(self, lcdc, interrupts, timer):
+    def setupIO(self, lcdc, interrupts, timer, sound):
         self.io_read = {
             0x0F: interrupts.readIF,
             0x04: timer.readDIV,
             0x05: timer.readTIMA,
             0x06: timer.readTMA,
             0x07: timer.readTAC,
+            0x10: sound.dummy,
+            0x11: sound.dummy,
+            0x12: sound.dummy,
+            0x13: sound.dummy,
+            0x14: sound.dummy,
+            0x16: sound.dummy,
+            0x17: sound.dummy,
+            0x18: sound.dummy,
+            0x19: sound.dummy,
+            0x1A: sound.dummy,
+            0x1B: sound.dummy,
+            0x1C: sound.dummy,
+            0x1D: sound.dummy,
+            0x1E: sound.dummy,
+            0x20: sound.dummy,
+            0x21: sound.dummy,
+            0x22: sound.dummy,
+            0x23: sound.dummy,
+            0x24: sound.dummy,
+            0x25: sound.dummy,
+            0x26: sound.dummy,
+            0x30: sound.dummy,
+            0x26: sound.readNR52,
             0x40: lcdc.readLCDC,
             0x41: lcdc.readSTAT,
             0x42: lcdc.readSCY,
@@ -51,6 +74,29 @@ class Memory:
             0x05: timer.writeTIMA,
             0x06: timer.writeTMA,
             0x07: timer.writeTAC,
+            0x10: sound.dummy,
+            0x11: sound.dummy,
+            0x12: sound.dummy,
+            0x13: sound.dummy,
+            0x14: sound.dummy,
+            0x16: sound.dummy,
+            0x17: sound.dummy,
+            0x18: sound.dummy,
+            0x19: sound.dummy,
+            0x1A: sound.dummy,
+            0x1B: sound.dummy,
+            0x1C: sound.dummy,
+            0x1D: sound.dummy,
+            0x1E: sound.dummy,
+            0x20: sound.dummy,
+            0x21: sound.dummy,
+            0x22: sound.dummy,
+            0x23: sound.dummy,
+            0x24: sound.dummy,
+            0x25: sound.dummy,
+            0x26: sound.dummy,
+            0x30: sound.dummy,
+            0x26: sound.writeNR52,
             0x40: lcdc.writeLCDC,
             0x41: lcdc.writeSTAT,
             0x42: lcdc.writeSCY,
@@ -84,7 +130,7 @@ class Memory:
         #self.write(0xFF1E, 0xBF)
         #self.write(0xFF20, 0x77)
         #self.write(0xFF25, 0xF3)
-        #self.write(0xFF26, 0xF1)
+        self.write(0xFF26, 0xF1)
         self.write(0xFF40, 0x91)
         self.write(0xFF42, 0x00)
         self.write(0xFF43, 0x00)
@@ -144,6 +190,7 @@ class Memory:
     def write(self, location, value):
         if location < 0x8000:
             self.writeToROM(location, value)
+
         elif location < 0xA000:
             self.vram[location - 0x8000] = value
 
