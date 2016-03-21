@@ -591,13 +591,13 @@ class CPU:
         self.setOpDesc("DI")
         self.pc += 1
         self.cycles += 1
-        self.interrupts.setEnable(False)
+        self.interrupts.setIME(False)
 
     def ei(self):
         self.setOpDesc("EI")
         self.pc += 1
         self.cycles += 1
-        self.interrupts.setEnable(True)
+        self.interrupts.setIME(True)
 
     # Loads
     def ld_rr(self, r1, r2):
@@ -851,7 +851,7 @@ class CPU:
         self.setOpDesc("RETI")
         self.retBase()
         self.cycles += 4
-        self.interrupts.setEnable(True)
+        self.interrupts.setIME(True)
 
     # Restart
     def rst_b(self, location):

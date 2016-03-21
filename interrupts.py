@@ -1,8 +1,9 @@
 class Interrupts:
     def __init__(self):
-        self.counter = 0
-        self.enable_new = True
-        self.enable = True
+        self.ime_counter = 0
+            
+        self.ime = True
+        self.ime_new = True
         self.iflag = 0
         self.ie = 0
         self.locations = [
@@ -22,23 +23,23 @@ class Interrupts:
     def setCall(self, call):
         self.call = call
 
-    def setEnable(self, enable):
-        self.enable_counter = 2
-        self.enable_new = enable
+    def setIME(self, enable):
+        self.ime_counter = 2
+        self.ime_new = enable
 
     def update(self):
-        if self.counter > 0:
-            self.counter -= 1
+        if self.ime_counter > 0:
+            self.ime_counter -= 1
 
-        if self.counter == 0:
-            self.enable = self.enable_new
+        if self.ime_counter == 0:
+            self.ime = self.ime_new
         
-        if self.enable:
+        if self.ime:
             check = self.ie & self.iflag
 
             for i, location in enumerate(self.locations):
                 if check & (1 << i):
-                    self.enable = False
+                    self.ime = False
                     self.clearIFbit(i)
                     self.callBase(location)
                     return
