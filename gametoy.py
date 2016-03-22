@@ -1,20 +1,21 @@
 #!/bin/env python3
 
-import sys
 import os
+import traceback
+import sys
 from cpu import CPU
-from memory import Memory
+from header import Header
 from interrupts import Interrupts
 from lcdc import LCDC
-from header import Header
-from timer import Timer
+from memory import Memory
 from sound import Sound
+from timer import Timer
 
 help = """
 Usage: gametoy rompath [debug mode] [max cycles]
 
 [debug modes]: display debug info
-    values: NONE, INSTRUCTIONS, REGISTERS, HEADER, TITLE, ALL
+    values: NONE, INSTRUCTIONS, REGISTERS, HEADER, TITLE, MEMORY, ALL
 [max cycles]: emulates this many cycles before exiting
     values: integer >= 0
 """
@@ -23,11 +24,10 @@ def run(path, debug, max_cycles):
     with open(path, "rb") as rom_file:
         debug_title = debug == "TITLE"
         debug_header = debug == "HEADER" or debug == "ALL"
-        debug_mem = debug == "MEM" or debug == "ALL"
+        debug_mem = debug == "MEMORY" or debug == "ALL"
         debug_instructions = debug == "INSTRUCTIONS" or debug == "ALL"
         debug_registers = debug == "REGISTERS" or debug == "ALL"
         rom = [i for i in rom_file.read()]
-        
         
         header = Header(rom, debug_header)
         mem = Memory(rom, header)
@@ -44,19 +44,27 @@ def run(path, debug, max_cycles):
         mem.setupIO(lcdc, interrupts, timer, sound)
         total_cycles = 0
 
-        while cpu.run_state != "QUIT":
-            interrupts.update()
-            if cpu.run_state == "RUN":
-                cpu.run()
-            else:
-                cpu.cycles += 1
+        try:
+            while cpu.run_state != "QUIT":
+                interrupts.update()
+                if cpu.run_state == "RUN":
+                    cpu.run()
+                else:
+                    cpu.cycles += 1
 
-            timer.update(cpu.cycles)
-            lcdc.update(cpu.cycles)
+                timer.update(cpu.cycles)
+                lcdc.update(cpu.cycles)
 
-            total_cycles += cpu.popCycles()
-            if max_cycles >= 0 and total_cycles > max_cycles:
-                cpu.run_state = "QUIT"
+                total_cycles += cpu.popCycles()
+                if max_cycles >= 0 and total_cycles > max_cycles:
+                    cpu.run_state = "QUIT"
+        except AssertionError as e:
+            if debug_mem:
+                mem.display()
+            traceback.print_tb(e.__traceback__)
+        else:
+            if debug_mem:
+                mem.display()
 
 def main():
     if len(sys.argv) > 1:

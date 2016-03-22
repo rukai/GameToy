@@ -2,14 +2,14 @@ class Memory:
     def __init__(self, rom, header):
         self.header = header
         self.rom = rom
-        self.external_ram = [0 for i in range(self.header.ram_banks * 0x4000)]
+        self.external_ram = [0 for i in range(self.header.ram_size)]
         self.internal_ram = [0 for i in range(0x4000 * 2)]
         self.vram = [0 for i in range(0x2000)]
         self.oam = [0 for i in range(0xA0)]
         self.hram = [0 for i in range(0x80)]
         self.rom_bank = 1
         self.cart_ram_bank = 1
-        self.enable_ram = False
+        self.enable_cart_ram = False
         self.rom_banking_mode = True
         
         if self.header.mbc == "MBC1":
@@ -155,7 +155,11 @@ class Memory:
 
         elif location < 0xC000: # 8KB External RAM Bank n
             bank_offset = self.cart_ram_bank * 0x4000
-            return self.external_ram[location - 0xA000 + bank_offset]
+            ram_location = location - 0xA000 + bank_offset
+            if ram_location < len(self.external_ram):
+                return self.external_ram[ram_location]
+            else:
+                return 0
 
         elif location < 0xE000: # 4KB + 4KB Internal RAM Bank 0 + 1
             return self.internal_ram[location - 0xC000]
@@ -167,7 +171,7 @@ class Memory:
             return self.oam[location - 0xFE00]
 
         elif location < 0xFF00: # Not usable
-            assert(False)
+            return 0
 
         elif location < 0xFF80 or location == 0xFFFF: #I/O Ports
             io_location = location - 0xFF00
@@ -178,6 +182,7 @@ class Memory:
 
         elif location <= 0xFFFF: #32B High ram
             return self.hram[location - 0xFF80]
+
         else:
             assert(False)
 
@@ -195,9 +200,14 @@ class Memory:
             self.vram[location - 0x8000] = value
 
         elif location < 0xC000:
-            if self.header.ram:
-                bank_offset = self.cart_ram_bank * 0x4000
+            bank_offset = self.cart_ram_bank * 0x4000
+            ram_location = location - 0xA000 + bank_offset
+            if self.header.ram and ram_location < len(self.external_ram):
+                if self.header.mbc == "MBC2":
+                    value &= 0x0F
                 self.external_ram[location - 0xA000 + bank_offset] = value
+            else:
+                return 0
 
         elif location < 0xE000:
             self.internal_ram[location - 0xC000] = value
@@ -209,18 +219,20 @@ class Memory:
             self.oam[location - 0xFE00]
 
         elif location < 0xFF00:
-            assert(False)
+            pass
 
         elif location < 0xFF80 or location == 0xFFFF:
             io_location = location - 0xFF00
             if io_location in self.io_write:
                 self.io_write[io_location](value)
             else:
-                print(hex(io_location))
                 assert(False)
 
         elif location < 0xFFFF:
             self.hram[location - 0xFF80] = value
+
+        else:
+            assert(False)
 
     def writeToROM(self, location, value):
         print("Cannot write to {}".format(self.header.mbc))
@@ -229,9 +241,9 @@ class Memory:
     def writeToMBC1(self, location, value):
         if location < 0x2000: # Enable ram
             if (value & 0x0F) == 0x0A:
-                self.enable_ram = True
+                self.enable_cart_ram = True
             else:
-                self.enable_ram = False
+                self.enable_cart_ram = False
 
         elif location < 0x4000: # ROM bank lower bits
             bit_mask = 0b00011111
@@ -240,11 +252,11 @@ class Memory:
                 lower_bits = 1
             self.rom_bank = (self.rom_bank & ~bit_mask) | lower_bits
 
-        elif location < 0x6000: # ROM bank higher bits
-            if self.rom_banking_mode:
+        elif location < 0x6000:
+            if self.rom_banking_mode: # ROM bank higher bits
                 higher_bits = value & 0x00000011
                 self.rom_bank = (self.rom_bank & 0b10011111) | (higher_bits << 5)
-            else:
+            else: #RAM bank
                 bit_mask = 0b00000011
                 bits = value & bit_mask
                 self.ram_bank = (self.ram_bank & ~bit_mask) | bits
@@ -269,3 +281,21 @@ class Memory:
 
     def writeToMBC5(self, location, value):
         assert(False)
+
+    def display(self):
+        print("------------------------------------------------")
+        print("Memory dump:")
+        print("ROM bank:", self.rom_bank)
+        print("Cart RAM bank:", self.cart_ram_bank)
+        print("Cart RAM enabled:", self.enable_cart_ram)
+        print("Banking mode:", "ROM" if self.rom_banking_mode else "RAM")
+        for line_number in range(0x0, 0x10000, 0x10):
+            line = hex(line_number)[2:].zfill(4) + ": "
+            # skip I/O ports until they are all handled
+            if line_number >= 0xFF00 and line_number < 0xFF80:
+                line += "0000 " * 8
+            else:
+                for j in range(line_number, line_number + 0x10, 2):
+                    line += hex(self.read(j  ))[2:].zfill(2)
+                    line += hex(self.read(j+1))[2:].zfill(2) + " "
+            print(line)

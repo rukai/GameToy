@@ -41,7 +41,7 @@ class Interrupts:
                 if check & (1 << i):
                     self.ime = False
                     self.clearIFbit(i)
-                    self.callBase(location)
+                    self.call(location)
                     return
         
     def callVBlank(self):

@@ -1,9 +1,8 @@
 class Header:
     def __init__(self, rom, debug):
         self.cartridgeType(rom)
-        self.ramBanks(rom)
-        self.romBanks(rom)
-        self.rom_size = rom[0x0138]
+        self.ramInfo(rom)
+        self.romInfo(rom)
 
         self.name = ""
         for byte in rom[0x0134:0x0149]:
@@ -117,7 +116,7 @@ class Header:
             print("Unknown cartridge type:", hex(self.cartridge_type))
             assert(False)
 
-    def ramBanks(self, rom):
+    def ramInfo(self, rom):
         "Must be called after cartridgeType()"
         
         banks_code = rom[0x149]
@@ -132,7 +131,21 @@ class Header:
         else:
             assert(False)
 
-    def romBanks(self, rom):
+        if self.mbc == "MBC2":
+            self.ram_size = 0x200
+        elif banks_code == 0:
+            self.ram_size = 0x0
+        elif banks_code == 1:
+            self.ram_size = 0x800
+        elif banks_code == 2:
+            self.ram_size = 0x2000
+        elif banks_code == 3:
+            self.ram_size = 0x8000
+        else:
+            assert(False)
+
+
+    def romInfo(self, rom):
         banks_code = rom[0x148]
 
         if banks_code == 0x00:
