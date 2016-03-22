@@ -826,7 +826,7 @@ class CPU:
 
         self.pc += 3
         if self.checkFlag(f):
-            callBase(w)
+            self.callBase(w)
             self.cycles += 6
         else:
             self.cycles += 3
@@ -888,7 +888,7 @@ class CPU:
         self.cycles += 2
 
     def add_rb(self):
-        b = getImmediateMemory()
+        b = self.getImmediateByte()
         self.setOpDesc("ADD", "A", asmHex(b))
         self.addBase(b)
         self.pc += 2
@@ -907,7 +907,7 @@ class CPU:
         self.cycles += 2
 
     def adc_rb(self):
-        b = getImmediateMemory()
+        b = getImmediateByte()
         self.setOpDesc("ADC", "A", asmHex(b))
         self.addBase(b + int(self.f.getCarry()))
         self.pc += 2
@@ -959,7 +959,7 @@ class CPU:
         self.cycles += 2
 
     def sub_rb(self):
-        b = getImmediateMemory()
+        b = self.getImmediateByte()
         self.setOpDesc("SUB", "A", asmHex(b))
         self.subBase(b)
         self.pc += 2
@@ -978,7 +978,7 @@ class CPU:
         self.cycles += 2
 
     def sbc_rb(self):
-        b = getImmediateMemory()
+        b = self.getImmediateByte()
         self.setOpDesc("SUB", "A", asmHex(b))
         self.subBase(b - int(self.f.getCarry()))
         self.pc += 2
