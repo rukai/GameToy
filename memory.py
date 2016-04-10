@@ -7,13 +7,14 @@ class Memory:
         self.vram = [0 for i in range(0x2000)]
         self.oam = [0 for i in range(0xA0)]
         self.hram = [0 for i in range(0x80)]
-        self.rom_bank = 1
-        self.cart_ram_bank = 1
+        self.rom_bank = 0
+        self.cart_ram_bank = 0
         self.enable_cart_ram = False
         self.rom_banking_mode = True
         
         if self.header.mbc == "MBC1":
             self.writeToROM = self.writeToMBC1
+            self.rom_bank = 1
         elif self.header.mbc == "MBC2":
             self.writeToROM = self.writeToMBC2
         elif self.header.mbc == "MBC3":
@@ -173,14 +174,14 @@ class Memory:
         elif location < 0xFF00: # Not usable
             return 0
 
-        elif location < 0xFF80 or location == 0xFFFF: #I/O Ports
+        elif location < 0xFF80 or location == 0xFFFF: # I/O Ports
             io_location = location - 0xFF00
             if io_location in self.io_read:
                 return self.io_read[io_location]()
             else:
                 assert(False)
 
-        elif location <= 0xFFFF: #32B High ram
+        elif location <= 0xFFFF: # 127B High ram
             return self.hram[location - 0xFF80]
 
         else:
@@ -253,11 +254,11 @@ class Memory:
             self.rom_bank = (self.rom_bank & ~bit_mask) | lower_bits
 
         elif location < 0x6000:
+            bit_mask = 0b00000011
             if self.rom_banking_mode: # ROM bank higher bits
-                higher_bits = value & 0x00000011
+                higher_bits = value & bit_mask
                 self.rom_bank = (self.rom_bank & 0b10011111) | (higher_bits << 5)
             else: #RAM bank
-                bit_mask = 0b00000011
                 bits = value & bit_mask
                 self.ram_bank = (self.ram_bank & ~bit_mask) | bits
 

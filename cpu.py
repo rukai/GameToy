@@ -35,7 +35,7 @@ class CPU:
             0x76:         self.halt,
             0x10:         self.stop,
 
-            #Interrupts
+            # Interrupts
             0xF3:         self.di,
             0xFB:         self.ei,
 
@@ -708,7 +708,7 @@ class CPU:
 
     def ldh_br(self):
         b = self.getImmediateByte()
-        self.setOpDesc("LDH", "($FF00+{})".format(asmHex(b)), "A")
+        self.setOpDesc("LD", "($FF00+{})".format(asmHex(b)), "A")
         address = 0xFF00 + b
         self.mem.write(address, int(self.a))
         self.pc += 2
@@ -717,7 +717,7 @@ class CPU:
     def ldh_rb(self):
         b = self.getImmediateByte()
         address = 0xFF00 + b
-        self.setOpDesc("LDH", "A", "($FF00+{})".format(asmHex(b)))
+        self.setOpDesc("LD", "A", "($FF00+{})".format(asmHex(b)))
         self.a.set(self.mem.read(address))
         self.pc += 2
         self.cycles += 3
@@ -744,11 +744,11 @@ class CPU:
     # Compare
     def cpBase(self, byte):
         value = int(self.a) - byte
-        newValue = value % 0x100
-        self.f.setZero(value == 0)
+        new_value = value % 0x100
+        self.f.setZero(new_value == 0)
         self.f.setSubtract(True)
-        self.f.setHalfCarry(bool(newValue & 0x00010000)) #TODO: VERIFY
-        self.f.setCarry(value != newValue)
+        self.f.setHalfCarry(bool(new_value & 0x00010000)) #TODO: VERIFY
+        self.f.setCarry(value != new_value)
 
     def cp_r(self, r):
         self.setOpDesc("CP", r.getName())
