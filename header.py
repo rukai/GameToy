@@ -3,6 +3,7 @@ class Header:
         self.cartridgeType(rom)
         self.ramInfo(rom)
         self.romInfo(rom)
+        self.rom_size = len(rom)
 
         self.name = ""
         for byte in rom[0x0134:0x0149]:
@@ -20,13 +21,15 @@ class Header:
         "Store cartridge hardware flags"
 
         self.cartridge_type = rom[0x0147]
-        self.mbc = "NONE"
+        self.mbc = None
         self.ram = False
         self.battery = False
         self.timer = False
         self.rumble = False
         
-        if self.cartridge_type == 0x01:
+        if self.cartridge_type == 0x00:
+            self.mbc = "ROM"
+        elif self.cartridge_type == 0x01:
             self.mbc = "MBC1"
         elif self.cartridge_type == 0x02:
             self.mbc = "MBC1"
@@ -41,8 +44,10 @@ class Header:
             self.mbc = "MBC1"
             self.battery = True
         elif self.cartridge_type == 0x08:
+            self.mbc = "ROM"
             self.ram = True
         elif self.cartridge_type == 0x09:
+            self.mbc = "ROM"
             self.ram = True
             self.battery = True
         elif self.cartridge_type == 0x0B:
@@ -112,9 +117,10 @@ class Header:
             self.mbc = "HuC1"
             self.ram = True
             self.battery = True
-        elif self.cartridge_type != 0:
+        else:
             print("Unknown cartridge type:", hex(self.cartridge_type))
             assert(False)
+        assert(self.mbc != None)
 
     def ramInfo(self, rom):
         "Must be called after cartridgeType()"
@@ -178,6 +184,7 @@ class Header:
         print("MBC:", self.mbc)
         print("RAM Banks:", self.ram_banks)
         print("ROM Banks:", self.rom_banks)
+        print("ROM size:", str(self.rom_size // 1024) + "KB")
         print("Japanese:", self.japanese)
         print("RAM:", self.ram)
         print("Battery:", self.battery)

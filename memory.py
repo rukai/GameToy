@@ -240,8 +240,7 @@ class Memory:
             assert(False)
 
     def writeToROM(self, location, value):
-        print("Cannot write to {}".format(self.header.mbc))
-        assert(False)
+        pass
 
     def writeToMBC1(self, location, value):
         if location < 0x2000: # Enable ram
