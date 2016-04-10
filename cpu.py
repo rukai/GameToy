@@ -907,7 +907,7 @@ class CPU:
         self.cycles += 2
 
     def adc_rb(self):
-        b = getImmediateByte()
+        b = self.getImmediateByte()
         self.setOpDesc("ADC", "A", asmHex(b))
         self.addBase(b + int(self.f.getCarry()))
         self.pc += 2
@@ -1236,7 +1236,7 @@ class CPU:
         carry = (value & 0b10000000) >> 7 #getBit(7)
         newValue = (value << 1) | int(carry)
         self.f.setCarry(carry)
-        setMemory(address, value)
+        self.mem.write(address, value)
         self.cycles += 4
         self.rotateBase()
 
@@ -1248,7 +1248,7 @@ class CPU:
         carry = value & 1 #getBit(0)
         newValue = (value >> 1) | (int(carry) << 7)
         self.f.setCarry(carry)
-        setMemory(address, newValue)
+        self.mem.write(address, newValue)
         self.cycles += 4
         self.rotateBase()
 
@@ -1259,7 +1259,7 @@ class CPU:
 
         newValue = (value << 1) | int(self.f.getCarry())
         self.f.setCarry((value & 0b10000000) >> 7) #getBit(7)
-        setMemory(address, newValue)
+        self.mem.write(address, newValue)
         self.cycles += 4
         self.rotateBase()
 
@@ -1270,7 +1270,7 @@ class CPU:
 
         newValue = (value >> 1) | (int(self.f.getCarry()) << 7)
         self.f.setCarry(value & 1) #getBit(0)
-        setMemory(address, newValue)
+        self.mem.write(address, newValue)
         self.cycles += 4
         self.rotateBase()
 
@@ -1356,7 +1356,7 @@ class CPU:
         address = int(X)
         value = self.mem.read(address)
         value = value | (1 << i)
-        setMemory(address, value)
+        self.mem.write(address, value)
         self.cycles += 4
         self.pc += 1
 
