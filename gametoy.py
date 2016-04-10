@@ -10,6 +10,7 @@ from lcdc import LCDC
 from memory import Memory
 from sound import Sound
 from timer import Timer
+from link import Link
 
 help = """
 Usage: gametoy rompath [debug mode] [max cycles]
@@ -40,8 +41,9 @@ def run(path, debug, max_cycles):
         cpu = CPU(mem, interrupts, debug_instructions, debug_registers)
         timer = Timer(interrupts)
         sound = Sound()
+        link = Link()
         lcdc = LCDC(mem, interrupts)
-        mem.setupIO(lcdc, interrupts, timer, sound)
+        mem.setupIO(lcdc, interrupts, timer, sound, link)
         total_cycles = 0
 
         try:

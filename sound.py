@@ -18,4 +18,4 @@ class Sound:
         # individual channels are not modified.
 
     def dummy(self, foo=0):
-        pass
+        return 0

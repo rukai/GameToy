@@ -25,9 +25,11 @@ class Memory:
             self.writeToROM = self.writeToMBC5
         
 
-    def setupIO(self, lcdc, interrupts, timer, sound):
+    def setupIO(self, lcdc, interrupts, timer, sound, link):
         self.io_read = {
             0x0F: interrupts.readIF,
+            0x01: link.dummy,
+            0x02: link.dummy,
             0x04: timer.readDIV,
             0x05: timer.readTIMA,
             0x06: timer.readTMA,
@@ -71,6 +73,8 @@ class Memory:
 
         self.io_write = {
             0x0F: interrupts.writeIF,
+            0x01: link.dummy,
+            0x02: link.dummy,
             0x04: timer.writeDIV,
             0x05: timer.writeTIMA,
             0x06: timer.writeTMA,
