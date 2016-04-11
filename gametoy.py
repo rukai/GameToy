@@ -1,8 +1,10 @@
 #!/bin/env python3
 
 import os
-import traceback
 import sys
+import traceback
+import pygame
+
 from cpu import CPU
 from header import Header
 from interrupts import Interrupts
@@ -47,6 +49,7 @@ def run(path, debug, max_cycles):
         total_cycles = 0
 
         try:
+            pygame.init()
             while cpu.run_state != "QUIT":
                 interrupts.update()
                 if cpu.run_state == "RUN":

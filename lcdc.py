@@ -1,3 +1,5 @@
+import pygame
+
 class LCDC:
     def __init__(self, mem, interrupts):
         self.mem = mem
@@ -27,7 +29,7 @@ class LCDC:
         # 1 - V-Blank
         # 2 - Searching OAM-RAM
         # 3 - Transferring data to LCD Driver
-        # Transitions: 2 -> 3 -> 0 -> 2 or 1
+        # Transitions: 2 -> 3 -> 0 -> (2 or 1 -> 2)
         
         self.scy = 0 #FF42
         self.scx = 0 #FF43
@@ -58,6 +60,12 @@ class LCDC:
         self.obp1_color2 = 0
         self.obp1_color3 = 0
 
+        self.screen = pygame.display.set_mode((160, 144))
+
+    def render(self):
+        self.screen.fill((255, 0, 0))
+        pygame.display.flip()
+
     def update(self, cycles):
         self.mode_counter += cycles
         if self.mode == 0:
@@ -83,6 +91,7 @@ class LCDC:
             if self.mode_counter >= 172:
                 self.mode_counter = 0
                 self.mode = 0
+                self.render()
         else:
             assert(False)
 
