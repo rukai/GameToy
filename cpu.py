@@ -1230,7 +1230,7 @@ class CPU:
         self.f.setSubtract(False)
         self.f.setHalfCarry(r.getBit(4))
 
-    def inc_X(self, X):
+    def inc_X(self):
         self.setOpDesc("INC", "(HL)")
         newValue = (self.mem.read(int(self.hl)) + 1) % 0x100
         self.mem.write(int(self.hl), newValue)
@@ -1238,7 +1238,7 @@ class CPU:
         self.cycles += 3
         self.f.setZero(newValue == 0)
         self.f.setSubtract(False)
-        self.f.setHalfCarry(r.getBit(4))
+        self.f.setHalfCarry(bool(newValue & 0b1000))
 
     def inc_x(self, x):
         self.setOpDesc("INC", x.getName())
