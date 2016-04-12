@@ -13,6 +13,7 @@ from memory import Memory
 from sound import Sound
 from timer import Timer
 from link import Link
+from joypad import Joypad
 
 help = """
 Usage: gametoy rompath [debug mode] [max cycles]
@@ -44,8 +45,9 @@ def run(path, debug, max_cycles):
         timer = Timer(interrupts)
         sound = Sound()
         link = Link()
+        joypad = Joypad()
         lcdc = LCDC(mem, interrupts)
-        mem.setupIO(lcdc, interrupts, timer, sound, link)
+        mem.setupIO(lcdc, interrupts, timer, sound, link, joypad)
         total_cycles = 0
 
         try:

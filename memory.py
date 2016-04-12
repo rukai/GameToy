@@ -24,15 +24,16 @@ class Memory:
             self.writeToROM = self.writeToMBC5
         
 
-    def setupIO(self, lcdc, interrupts, timer, sound, link):
+    def setupIO(self, lcdc, interrupts, timer, sound, link, joypad):
         self.io_read = {
-            0x0F: interrupts.readIF,
+            0x00: joypad.readJOYP,
             0x01: link.dummy,
             0x02: link.dummy,
             0x04: timer.readDIV,
             0x05: timer.readTIMA,
             0x06: timer.readTMA,
             0x07: timer.readTAC,
+            0x0F: interrupts.readIF,
             0x10: sound.dummy,
             0x11: sound.dummy,
             0x12: sound.dummy,
@@ -71,13 +72,14 @@ class Memory:
         }
 
         self.io_write = {
-            0x0F: interrupts.writeIF,
+            0x00: joypad.writeJOYP,
             0x01: link.dummy,
             0x02: link.dummy,
             0x04: timer.writeDIV,
             0x05: timer.writeTIMA,
             0x06: timer.writeTMA,
             0x07: timer.writeTAC,
+            0x0F: interrupts.writeIF,
             0x10: sound.dummy,
             0x11: sound.dummy,
             0x12: sound.dummy,
