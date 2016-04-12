@@ -728,7 +728,11 @@ class CPU:
 
     def halt(self):
         self.setOpDesc("HALT")
-        self.run_state = "HALT"
+
+        if self.interrupts.getIME():
+            self.run_state = "HALT"
+        # 'Skip' bug for next instruction is unimplemented
+
         self.pc += 1
         self.cycles += 1
 

@@ -27,6 +27,9 @@ class Interrupts:
         self.ime_counter = 2
         self.ime_new = enable
 
+    def getIME(self):
+        return self.ime
+
     def update(self):
         if self.ime_counter > 0:
             self.ime_counter -= 1

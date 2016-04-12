@@ -135,7 +135,7 @@ class LCDC:
         value |= int(self.enable_oam_interrupt)    << 5
         value |= int(self.enable_vblank_interrupt) << 4
         value |= int(self.enable_hblank_interrupt) << 3
-        value |= int(self.ly == lyc)               << 2
+        value |= int(self.ly == self.lyc)          << 2
         value |= self.mode & 0b10
         value |= self.mode & 0b01
         return value
