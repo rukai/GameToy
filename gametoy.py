@@ -63,7 +63,7 @@ def run(path, debug, max_cycles):
                 total_cycles += cpu.popCycles()
                 if max_cycles >= 0 and total_cycles > max_cycles:
                     cpu.run_state = "QUIT"
-        except AssertionError as e:
+        except (AssertionError, KeyboardInterrupt) as e:
             if debug_mem:
                 mem.display()
             traceback.print_tb(e.__traceback__)
