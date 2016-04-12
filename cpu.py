@@ -487,7 +487,7 @@ class CPU:
     def cb_prefix(self):
         self.pc += 1
         self.op_desc = "cb_prefix"
-        instruction = self.getImmediateByte()
+        instruction = self.mem.read(int(self.pc))
         if instruction in self.cb_op_table:
             self.cb_op_table[instruction]()
         else:
