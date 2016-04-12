@@ -363,7 +363,7 @@ class CPU:
             0x1D: lambda: self.rr_r(self.l),
             0x1E:         self.rr_X,
 
-            #Shifts
+            # Shifts
             0x27: lambda: self.sla_r(self.a),
             0x20: lambda: self.sla_r(self.b),
             0x21: lambda: self.sla_r(self.c),
@@ -463,6 +463,80 @@ class CPU:
             0xFC: lambda: self.set_ir(7, self.h),
             0xFD: lambda: self.set_ir(7, self.l),
             0xFE: lambda: self.set_iX(7, self.hl),
+
+            # Reset Bit
+            0x87: lambda: self.res_ir(0, self.a),
+            0x80: lambda: self.res_ir(0, self.b),
+            0x81: lambda: self.res_ir(0, self.c),
+            0x82: lambda: self.res_ir(0, self.d),
+            0x83: lambda: self.res_ir(0, self.e),
+            0x84: lambda: self.res_ir(0, self.h),
+            0x85: lambda: self.res_ir(0, self.l),
+            0x86: lambda: self.res_iX(0, self.hl),
+
+            0x8F: lambda: self.res_ir(1, self.a),
+            0x88: lambda: self.res_ir(1, self.b),
+            0x89: lambda: self.res_ir(1, self.c),
+            0x8A: lambda: self.res_ir(1, self.d),
+            0x8B: lambda: self.res_ir(1, self.e),
+            0x8C: lambda: self.res_ir(1, self.h),
+            0x8D: lambda: self.res_ir(1, self.l),
+            0x8E: lambda: self.res_iX(1, self.hl),
+
+            0x97: lambda: self.res_ir(2, self.a),
+            0x90: lambda: self.res_ir(2, self.b),
+            0x91: lambda: self.res_ir(2, self.c),
+            0x92: lambda: self.res_ir(2, self.d),
+            0x93: lambda: self.res_ir(2, self.e),
+            0x94: lambda: self.res_ir(2, self.h),
+            0x95: lambda: self.res_ir(2, self.l),
+            0x96: lambda: self.res_iX(2, self.hl),
+
+            0x9F: lambda: self.res_ir(3, self.a),
+            0x98: lambda: self.res_ir(3, self.b),
+            0x99: lambda: self.res_ir(3, self.c),
+            0x9A: lambda: self.res_ir(3, self.d),
+            0x9B: lambda: self.res_ir(3, self.e),
+            0x9C: lambda: self.res_ir(3, self.h),
+            0x9D: lambda: self.res_ir(3, self.l),
+            0x9E: lambda: self.res_iX(3, self.hl),
+            
+            0xA7: lambda: self.res_ir(4, self.a),
+            0xA0: lambda: self.res_ir(4, self.b),
+            0xA1: lambda: self.res_ir(4, self.c),
+            0xA2: lambda: self.res_ir(4, self.d),
+            0xA3: lambda: self.res_ir(4, self.e),
+            0xA4: lambda: self.res_ir(4, self.h),
+            0xA5: lambda: self.res_ir(4, self.l),
+            0xA6: lambda: self.res_iX(4, self.hl),
+
+            0xAF: lambda: self.res_ir(5, self.a),
+            0xA8: lambda: self.res_ir(5, self.b),
+            0xA9: lambda: self.res_ir(5, self.c),
+            0xAA: lambda: self.res_ir(5, self.d),
+            0xAB: lambda: self.res_ir(5, self.e),
+            0xAC: lambda: self.res_ir(5, self.h),
+            0xAD: lambda: self.res_ir(5, self.l),
+            0xAE: lambda: self.res_iX(5, self.hl),
+
+            0xB7: lambda: self.res_ir(6, self.a),
+            0xB0: lambda: self.res_ir(6, self.b),
+            0xB1: lambda: self.res_ir(6, self.c),
+            0xB2: lambda: self.res_ir(6, self.d),
+            0xB3: lambda: self.res_ir(6, self.e),
+            0xB4: lambda: self.res_ir(6, self.h),
+            0xB5: lambda: self.res_ir(6, self.l),
+            0xB6: lambda: self.res_iX(6, self.hl),
+
+            0xBF: lambda: self.res_ir(7, self.a),
+            0xB8: lambda: self.res_ir(7, self.b),
+            0xB9: lambda: self.res_ir(7, self.c),
+            0xBA: lambda: self.res_ir(7, self.d),
+            0xBB: lambda: self.res_ir(7, self.e),
+            0xBC: lambda: self.res_ir(7, self.h),
+            0xBD: lambda: self.res_ir(7, self.l),
+            0xBE: lambda: self.res_iX(7, self.hl),
+
         }
 
     def run(self):
@@ -1344,7 +1418,7 @@ class CPU:
         self.f.setSubtract(False)
         self.f.setHalfCarry(False)
 
-    # Set
+    # Set Bit
     def set_ir(self, i, r):
         self.setOpDesc("SET", str(i), r.getName())
         r.setBit(i, True)
@@ -1356,6 +1430,22 @@ class CPU:
         address = int(X)
         value = self.mem.read(address)
         value = value | (1 << i)
+        self.mem.write(address, value)
+        self.cycles += 4
+        self.pc += 1
+
+    # Reset Bit
+    def res_ir(self, i, r):
+        self.setOpDesc("RES", str(i), r.getName())
+        r.setBit(i, False)
+        self.cycles += 2
+        self.pc += 1
+
+    def res_iX(self, i, X):
+        self.setOpDesc("RES", str(i), "({})".format(X.getName()))
+        address = int(X)
+        value = self.mem.read(address)
+        value = value & ~(1 << i)
         self.mem.write(address, value)
         self.cycles += 4
         self.pc += 1
