@@ -7,14 +7,13 @@ class Memory:
         self.vram = [0 for i in range(0x2000)]
         self.oam = [0 for i in range(0xA0)]
         self.hram = [0 for i in range(0x80)]
-        self.rom_bank = 0
+        self.rom_bank = 1
         self.cart_ram_bank = 0
         self.enable_cart_ram = False
         self.rom_banking_mode = True
         
         if self.header.mbc == "MBC1":
             self.writeToROM = self.writeToMBC1
-            self.rom_bank = 1
         elif self.header.mbc == "MBC2":
             self.writeToROM = self.writeToMBC2
         elif self.header.mbc == "MBC3":
