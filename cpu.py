@@ -391,6 +391,16 @@ class CPU:
             0x3D: lambda: self.srl_r(self.l),
             0x3E: lambda: self.srl_X(self.hl),
 
+            # Swaps
+            0x37: lambda: self.swap_r(self.a),
+            0x30: lambda: self.swap_r(self.b),
+            0x31: lambda: self.swap_r(self.c),
+            0x32: lambda: self.swap_r(self.d),
+            0x33: lambda: self.swap_r(self.e),
+            0x34: lambda: self.swap_r(self.h),
+            0x35: lambda: self.swap_r(self.l),
+            0x36: lambda: self.swap_X,
+
             # Set Bit
             0xC7: lambda: self.set_ir(0, self.a),
             0xC0: lambda: self.set_ir(0, self.b),
@@ -1499,6 +1509,7 @@ class CPU:
     def set_ir(self, i, r):
         self.setOpDesc("SET", str(i), r.getName())
         r.setBit(i, True)
+
         self.cycles += 2
         self.pc += 1
 
@@ -1508,6 +1519,7 @@ class CPU:
         value = self.mem.read(address)
         value |= (1 << i)
         self.mem.write(address, value)
+
         self.cycles += 4
         self.pc += 1
 
@@ -1515,6 +1527,7 @@ class CPU:
     def res_ir(self, i, r):
         self.setOpDesc("RES", str(i), r.getName())
         r.setBit(i, False)
+
         self.cycles += 2
         self.pc += 1
 
@@ -1524,12 +1537,14 @@ class CPU:
         value = self.mem.read(address)
         value &= ~(1 << i)
         self.mem.write(address, value)
+
         self.cycles += 4
         self.pc += 1
 
     # Get Bit
     def bit_ir(self, i, r):
         self.setOpDesc("BIT", str(i), r.getName())
+
         self.cycles += 2
         self.pc += 1
         self.f.setZero(r.getBit(i))
@@ -1541,11 +1556,40 @@ class CPU:
         address = int(X)
         value = self.mem.read(address)
         bit = bool(value & (1 << i))
+
         self.cycles += 4
         self.pc += 1
         self.f.setZero(bit)
         self.f.setSubtract(0)
         self.f.setHalfCarry(1)
+
+    # Swap
+    def swap_r(self, r):
+        self.setOpDesc("SWAP {}".format(r.getName()))
+        value = int(r)
+        newValue = ((value & 0xF0) >> 4) & ((value & 0x0F) << 4)
+        r.set(newValue)
+
+        self.f.setZero(newValue == 0)
+        self.f.setSubtract(0)
+        self.f.setHalfCarry(0)
+        self.f.setCarry(0)
+        self.cycles += 2
+        self.pc += 1
+
+    def swap_X(self):
+        self.setOpDesc("SWAP (HL)")
+        address = int(self.hl)
+        value = self.mem.read(address)
+        newValue = ((value & 0xF0) >> 4) & ((value & 0x0F) << 4)
+        self.mem.write(address, newValue)
+
+        self.f.setZero(newValue == 0)
+        self.f.setSubtract(0)
+        self.f.setHalfCarry(0)
+        self.f.setCarry(0)
+        self.cycles += 4
+        self.pc += 1
 
 if __name__ == "__main__":
     import doctest
