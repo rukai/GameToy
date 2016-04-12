@@ -225,3 +225,10 @@ class LCDC:
         self.obp1_color3 =  value >> 6
         self.obp1_color2 = (value >> 4) & 0x11
         self.obp1_color1 = (value >> 2) & 0x11
+
+    def writeOAM_DMA(self, value):
+        assert(value >= 0 and value < 0xF1)
+        source_address = value << 8
+        for offset in range(0xA0):
+            byte = self.mem.read(source_address + offset)
+            self.mem.write(0xFE00 + offset, byte)

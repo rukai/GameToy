@@ -108,6 +108,7 @@ class Memory:
             0x43: lcdc.writeSCX,
             0x44: lcdc.writeLY,
             0x45: lcdc.writeLYC,
+            0x46: lcdc.writeOAM_DMA,
             0x47: lcdc.writeBGP,
             0x48: lcdc.writeOBP0,
             0x49: lcdc.writeOBP1,
@@ -185,7 +186,7 @@ class Memory:
             else:
                 assert(False)
 
-        elif location <= 0xFFFF: # 127B High ram
+        elif location < 0xFFFF: # 127B High ram
             return self.hram[location - 0xFF80]
 
         else:
@@ -271,7 +272,7 @@ class Memory:
             elif value == 1:
                 self.rom_banking_mode = False
             else:
-                assert(false)
+                assert(False)
 
 
     def writeToMBC2(self, location, value):
