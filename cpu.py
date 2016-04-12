@@ -139,8 +139,8 @@ class CPU:
             0x31: lambda: self.ld_xw(self.sp),
             0xF9: lambda: self.ld_xx(self.sp, self.hl),
 
-            0xE2:         self.ld_Rr,
-            0xF2:         self.ld_rR,
+            0xE2:         self.ldh_Rr,
+            0xF2:         self.ldh_rR,
 
             # Stack operations
             0xC5: lambda: self.push_x(self.bc),
@@ -738,20 +738,6 @@ class CPU:
         self.pc += 3
         self.cycles += 4
 
-    def ld_rR(self):
-        self.setOpDesc("LD", "A", "($FF00+C)")
-        address = 0xFF00 + int(self.c)
-        self.a.set(self.mem.read(address))
-        self.pc += 1
-        self.cycles += 2
-
-    def ld_Rr(self):
-        self.setOpDesc("LD", "($FF00+C)", "A")
-        address = 0xF000 + int(self.c)
-        self.mem.write(address, int(self.a))
-        self.pc += 1
-        self.cycles += 2
-
     def ldd_rX(self):
         self.setOpDesc("LDD", "A", "(HL)")
         self.a.set(self.mem.read(int(self.hl)))
@@ -777,6 +763,20 @@ class CPU:
         self.setOpDesc("LDI", "(HL)", "A")
         self.mem.write(int(self.hl), int(self.a))
         self.hl += 1
+        self.pc += 1
+        self.cycles += 2
+
+    def ldh_rR(self):
+        self.setOpDesc("LD", "A", "($FF00+C)")
+        address = 0xFF00 + int(self.c)
+        self.a.set(self.mem.read(address))
+        self.pc += 1
+        self.cycles += 2
+
+    def ldh_Rr(self):
+        self.setOpDesc("LD", "($FF00+C)", "A")
+        address = 0xFF00 + int(self.c)
+        self.mem.write(address, int(self.a))
         self.pc += 1
         self.cycles += 2
 
