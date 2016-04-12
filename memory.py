@@ -129,28 +129,32 @@ class Memory:
             0x49: lcdc.writeOBP1,
             0x4A: lcdc.writeWY,
             0x4B: lcdc.writeWX,
+            0x7F: self.dummy, # Tetris loop at 0x028A overshoots High RAM by one
             0xFF: interrupts.writeIE,
         }
 
         self.loadIOvalues()
 
+    def dummy(self, foo=0):
+        return 0
+
     def loadIOvalues(self):
         self.write(0xFF05, 0x00)
         self.write(0xFF06, 0x00)
         self.write(0xFF07, 0x00)
-        #self.write(0xFF10, 0x80)
-        #self.write(0xFF11, 0xBF)
-        #self.write(0xFF12, 0xF3)
-        #self.write(0xFF14, 0xBF)
-        #self.write(0xFF16, 0x3F)
-        #self.write(0xFF17, 0x00)
-        #self.write(0xFF19, 0xBF)
-        #self.write(0xFF1A, 0xFF)
-        #self.write(0xFF1B, 0x00)
-        #self.write(0xFF1C, 0x00)
-        #self.write(0xFF1E, 0xBF)
-        #self.write(0xFF20, 0x77)
-        #self.write(0xFF25, 0xF3)
+        self.write(0xFF10, 0x80)
+        self.write(0xFF11, 0xBF)
+        self.write(0xFF12, 0xF3)
+        self.write(0xFF14, 0xBF)
+        self.write(0xFF16, 0x3F)
+        self.write(0xFF17, 0x00)
+        self.write(0xFF19, 0xBF)
+        self.write(0xFF1A, 0xFF)
+        self.write(0xFF1B, 0x00)
+        self.write(0xFF1C, 0x00)
+        self.write(0xFF1E, 0xBF)
+        self.write(0xFF20, 0x77)
+        self.write(0xFF25, 0xF3)
         self.write(0xFF26, 0xF1)
         self.write(0xFF40, 0x91)
         self.write(0xFF42, 0x00)
