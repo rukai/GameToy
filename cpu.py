@@ -537,6 +537,79 @@ class CPU:
             0xBD: lambda: self.res_ir(7, self.l),
             0xBE: lambda: self.res_iX(7, self.hl),
 
+            # Get Bit
+            0x47: lambda: self.bit_ir(0, self.a),
+            0x40: lambda: self.bit_ir(0, self.b),
+            0x41: lambda: self.bit_ir(0, self.c),
+            0x42: lambda: self.bit_ir(0, self.d),
+            0x43: lambda: self.bit_ir(0, self.e),
+            0x44: lambda: self.bit_ir(0, self.h),
+            0x45: lambda: self.bit_ir(0, self.l),
+            0x46: lambda: self.bit_iX(0, self.hl),
+
+            0x4F: lambda: self.bit_ir(1, self.a),
+            0x48: lambda: self.bit_ir(1, self.b),
+            0x49: lambda: self.bit_ir(1, self.c),
+            0x4A: lambda: self.bit_ir(1, self.d),
+            0x4B: lambda: self.bit_ir(1, self.e),
+            0x4C: lambda: self.bit_ir(1, self.h),
+            0x4D: lambda: self.bit_ir(1, self.l),
+            0x4E: lambda: self.bit_iX(1, self.hl),
+
+            0x57: lambda: self.bit_ir(2, self.a),
+            0x50: lambda: self.bit_ir(2, self.b),
+            0x51: lambda: self.bit_ir(2, self.c),
+            0x52: lambda: self.bit_ir(2, self.d),
+            0x53: lambda: self.bit_ir(2, self.e),
+            0x54: lambda: self.bit_ir(2, self.h),
+            0x55: lambda: self.bit_ir(2, self.l),
+            0x56: lambda: self.bit_iX(2, self.hl),
+
+            0x5F: lambda: self.bit_ir(3, self.a),
+            0x58: lambda: self.bit_ir(3, self.b),
+            0x59: lambda: self.bit_ir(3, self.c),
+            0x5A: lambda: self.bit_ir(3, self.d),
+            0x5B: lambda: self.bit_ir(3, self.e),
+            0x5C: lambda: self.bit_ir(3, self.h),
+            0x5D: lambda: self.bit_ir(3, self.l),
+            0x5E: lambda: self.bit_iX(3, self.hl),
+
+            0x67: lambda: self.bit_ir(4, self.a),
+            0x60: lambda: self.bit_ir(4, self.b),
+            0x61: lambda: self.bit_ir(4, self.c),
+            0x62: lambda: self.bit_ir(4, self.d),
+            0x63: lambda: self.bit_ir(4, self.e),
+            0x64: lambda: self.bit_ir(4, self.h),
+            0x65: lambda: self.bit_ir(4, self.l),
+            0x66: lambda: self.bit_iX(4, self.hl),
+
+            0x6F: lambda: self.bit_ir(5, self.a),
+            0x68: lambda: self.bit_ir(5, self.b),
+            0x69: lambda: self.bit_ir(5, self.c),
+            0x6A: lambda: self.bit_ir(5, self.d),
+            0x6B: lambda: self.bit_ir(5, self.e),
+            0x6C: lambda: self.bit_ir(5, self.h),
+            0x6D: lambda: self.bit_ir(5, self.l),
+            0x6E: lambda: self.bit_iX(5, self.hl),
+
+            0x77: lambda: self.bit_ir(6, self.a),
+            0x70: lambda: self.bit_ir(6, self.b),
+            0x71: lambda: self.bit_ir(6, self.c),
+            0x72: lambda: self.bit_ir(6, self.d),
+            0x73: lambda: self.bit_ir(6, self.e),
+            0x74: lambda: self.bit_ir(6, self.h),
+            0x75: lambda: self.bit_ir(6, self.l),
+            0x76: lambda: self.bit_iX(6, self.hl),
+
+            0x7F: lambda: self.bit_ir(7, self.a),
+            0x78: lambda: self.bit_ir(7, self.b),
+            0x79: lambda: self.bit_ir(7, self.c),
+            0x7A: lambda: self.bit_ir(7, self.d),
+            0x7B: lambda: self.bit_ir(7, self.e),
+            0x7C: lambda: self.bit_ir(7, self.h),
+            0x7D: lambda: self.bit_ir(7, self.l),
+            0x7E: lambda: self.bit_iX(7, self.hl),
+
         }
 
     def run(self):
@@ -1429,7 +1502,7 @@ class CPU:
         self.setOpDesc("SET", str(i), "({})".format(X.getName()))
         address = int(X)
         value = self.mem.read(address)
-        value = value | (1 << i)
+        value |= (1 << i)
         self.mem.write(address, value)
         self.cycles += 4
         self.pc += 1
@@ -1445,10 +1518,30 @@ class CPU:
         self.setOpDesc("RES", str(i), "({})".format(X.getName()))
         address = int(X)
         value = self.mem.read(address)
-        value = value & ~(1 << i)
+        value &= ~(1 << i)
         self.mem.write(address, value)
         self.cycles += 4
         self.pc += 1
+
+    # Get Bit
+    def bit_ir(self, i, r):
+        self.setOpDesc("BIT", str(i), r.getName())
+        self.cycles += 2
+        self.pc += 1
+        self.f.setZero(r.getBit(i))
+        self.f.setSubtract(0)
+        self.f.setHalfCarry(1)
+
+    def bit_iX(self, i, X):
+        self.setOpDesc("BIT", str(i), "({})".format(X.getName()))
+        address = int(X)
+        value = self.mem.read(address)
+        bit = bool(value & (1 << i))
+        self.cycles += 4
+        self.pc += 1
+        self.f.setZero(bit)
+        self.f.setSubtract(0)
+        self.f.setHalfCarry(1)
 
 if __name__ == "__main__":
     import doctest
