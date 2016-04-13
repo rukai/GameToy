@@ -53,7 +53,7 @@ class Timer:
     # Timer Controller
     def readTAC(self):
         value = int(timer_run) << 2
-        value &= clock_select
+        value |= clock_select
         return value
 
     def writeTAC(self, value):
