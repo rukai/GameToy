@@ -59,7 +59,8 @@ class LCDC:
         self.obp1_color1 = 0
         self.obp1_color2 = 0
         self.obp1_color3 = 0
-
+    
+        self.tiles = {}
         self.screen = pygame.Surface((160, 144),)
         self.display = pygame.display.set_mode((160 * 4, 144 * 4))
         pygame.display.set_caption("GAMETOY")
@@ -71,6 +72,7 @@ class LCDC:
         ]
 
     def render(self):
+        self.tiles = {}
         if self.display_enable:
             self.screen.fill((255, 0, 255)) # self.screen.fill(self.emu_pallete[0])
             if self.sprite_display_enable:
@@ -109,6 +111,9 @@ class LCDC:
                 self.screen.blit(tile, (x * 8 + x_offset, y * 8 + y_offset))
 
     def renderTile(self, address):
+        if address in self.tiles:
+            return self.tiles[address]
+
         tile = pygame.Surface((8, 8))
         for y in range(8):
             address_y = address + y * 2
@@ -120,6 +125,7 @@ class LCDC:
                 high_bit = int(bool(high_byte & mask))
                 color = (high_bit << 1) | low_bit
                 tile.set_at((y, x), self.emu_pallete[color])
+                self.tiles[address] = tile
         return tile
 
     def update(self, cycles):
@@ -128,7 +134,7 @@ class LCDC:
             if self.mode_counter >= 204:
                 self.mode_counter = 0
                 self.ly += 1
-                if self.ly == 144: #Reached end of screen
+                if self.ly == 144: # Reached end of screen
                     self.updateInterrupts(1)
                 else:
                     self.updateInterrupts(2)
