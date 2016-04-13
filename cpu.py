@@ -951,7 +951,7 @@ class CPU:
 
     def jp_X(self, X):
         self.setOpDesc("JP", "({})".format(X.getName()))
-        self.pc.set(self.mem.read(int(X)))
+        self.pc.set(int(X))
         self.cycles += 1
 
     def jp_fw(self, f):
@@ -1100,7 +1100,7 @@ class CPU:
 
     def add_xb(self):
         b = self.getImmediateSignedByte()
-        self.setOpDesc("ADD", "SP", hexasm(b))
+        self.setOpDesc("ADD", "SP", asmHex(b))
         value = (int(self.sp) + b) % 0x10000
         self.pc += 2
         self.cycles += 4
@@ -1337,7 +1337,7 @@ class CPU:
     def rlca(self):
         self.setOpDesc("RRCA")
         carry = self.a.getBit(7)
-        newValue = (int(self.a) << 1) | int(carry)
+        newValue = ((int(self.a) << 1) | int(carry)) & 0xFF
         self.f.setCarry(carry)
         self.a.set(newValue)
         self.cycles += 1
