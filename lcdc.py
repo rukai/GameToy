@@ -78,9 +78,9 @@ class LCDC:
             if self.sprite_display_enable:
                 self.renderSprites()
             if self.bg_display_enable:
-                self.renderBG_W(self.bg_tile_map_select, self.readSCX(), self.readSCY())
+                self.renderBG()
             if self.w_display_enable:
-                self.renderBG_W(self.w_tile_map_select, self.readWX(), self.readWY())
+                self.renderW()
         else:
             self.screen.fill((255, 0, 0)) # TODO: remove debug color
         upscaled = pygame.transform.scale(self.screen, (self.screen.get_width() * 4, self.screen.get_height() * 4),)
@@ -90,11 +90,35 @@ class LCDC:
     def renderSprites(self):
         tile_width = 16 if self.sprite_size else 8
 
-    def renderBG_W(self, map_select, x_offset, y_offset):
-        if map_select:
-            start_address = 0x9800
-        else:
+    def renderBG(self):
+        if self.bg_tile_map_select:
             start_address = 0x9C00
+        else:
+            start_address = 0x9800
+
+        if self.bg_w_tile_data_select:
+            tile_start_address = 0x8000
+            read = self.mem.read
+        else:
+            tile_start_address = 0x9000
+            read = self.mem.readSigned
+
+        for y in range(19):
+            for x in range(21):
+                x_address = (x-1) + self.scx // 8
+                y_address = ((y-1) + self.scy // 8) * 32
+                address = start_address + (x_address + y_address) % 1024
+                tile_address = tile_start_address + read(address)
+                tile = self.renderTile(tile_address)
+                x_pos = (x-1) * 8 + (self.scx % 8)
+                y_pos = (y-1) * 8 + (self.scy % 8)
+                self.screen.blit(tile, (x_pos, y_pos))
+
+    def renderW(self):
+        if self.w_tile_map_select:
+            start_address = 0x9C00
+        else:
+            start_address = 0x9800
 
         if self.bg_w_tile_data_select:
             tile_start_address = 0x8000
@@ -102,13 +126,17 @@ class LCDC:
         else:
             tile_start_address = 0x8800
             read = self.mem.readSigned
-        
-        for y in range(32):
-            for x in range(32):
-                address = start_address + 32 * y + x
+
+        for y in range(18):
+            for x in range(20):
+                x_address = x + self.scx // 8
+                y_address = (y + self.scy // 8) * 32
+                address = start_address + (x_address + y_address) % 1024
                 tile_address = tile_start_address + read(address)
                 tile = self.renderTile(tile_address)
-                self.screen.blit(tile, (x * 8 + x_offset, y * 8 + y_offset))
+                x_pos = x * 8 + self.wx -7
+                y_pos = y * 8 + self.wy
+                self.screen.blit(tile, (x_pos, y_pos))
 
     def renderTile(self, address):
         if address in self.tiles:
@@ -278,7 +306,6 @@ class LCDC:
         self.bgp_color2 = (value >> 4) & 0b11
         self.bgp_color1 = (value >> 2) & 0b11
         self.bgp_color0 =  value       & 0b11
-        print(self.bgp_color0)
 
     # Object palette 0 data
     def readOBP0(self):
