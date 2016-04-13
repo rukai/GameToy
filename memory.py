@@ -22,7 +22,6 @@ class Memory:
             self.writeToROM = self.writeToMBC4
         elif self.header.mbc == "MBC5":
             self.writeToROM = self.writeToMBC5
-        
 
     def setupIO(self, lcdc, interrupts, timer, sound, link, joypad):
         self.io_read = {

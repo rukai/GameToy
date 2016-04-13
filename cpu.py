@@ -30,7 +30,6 @@ class CPU:
         interrupts.setCall(self.callBase)
 
         self.op_table = {
-
             0x00:         self.nop,
             0x76:         self.halt,
             0x10:         self.stop,
@@ -40,6 +39,8 @@ class CPU:
             0xFB:         self.ei,
 
             # Loads
+            0x08: lambda: self.ld_Wx,
+
             0x7F: lambda: self.ld_rr(self.a, self.a),
             0x78: lambda: self.ld_rr(self.a, self.b),
             0x79: lambda: self.ld_rr(self.a, self.c),
@@ -619,7 +620,6 @@ class CPU:
             0x7C: lambda: self.bit_ir(7, self.h),
             0x7D: lambda: self.bit_ir(7, self.l),
             0x7E: lambda: self.bit_iX(7, self.hl),
-
         }
 
     def run(self):
@@ -679,6 +679,8 @@ class CPU:
         print("l:", asmHex(int(self.l)))
         print("pc:", asmHex(int(self.pc), 4))
         print("sp:", asmHex(int(self.sp), 4))
+        print("ROM bank", self.mem.rom_bank)
+        print("Cart RAM bank", self.mem.cart_ram_bank)
         print("------------------------------------------------")
 
     def popCycles(self):
@@ -766,6 +768,16 @@ class CPU:
         self.interrupts.setIME(True)
 
     # Loads
+    def ld_Wx(self):
+        W = self.getImmediateWord()
+        self.setOpDesc("LD", "({})".format(asmHex(W)), "SP")
+        value = int(self.sp)
+        self.mem.write(W, value & 0xFF)
+        self.mem.write(W + 1, value & 0xFF00)
+
+        self.pc += 3
+        self.cycles += 5
+
     def ld_rr(self, r1, r2):
         self.setOpDesc("LD", r1.getName(), r2.getName())
         r1.set(int(r2))
@@ -1395,7 +1407,7 @@ class CPU:
         address = int(X)
         value = self.mem.read(address)
 
-        carry = (value & 0b10000000) >> 7 #getBit(7)
+        carry = (value & 0b10000000) >> 7
         newValue = (value << 1) | int(carry)
         self.f.setCarry(carry)
         self.mem.write(address, value)
@@ -1407,7 +1419,7 @@ class CPU:
         address = int(X)
         value = self.mem.read(address)
 
-        carry = value & 1 #getBit(0)
+        carry = value & 1
         newValue = (value >> 1) | (int(carry) << 7)
         self.f.setCarry(carry)
         self.mem.write(address, newValue)
@@ -1420,7 +1432,7 @@ class CPU:
         value = self.mem.read(address)
 
         newValue = (value << 1) | int(self.f.getCarry())
-        self.f.setCarry((value & 0b10000000) >> 7) #getBit(7)
+        self.f.setCarry((value & 0b10000000) >> 7)
         self.mem.write(address, newValue)
         self.cycles += 4
         self.rotateBase()
@@ -1431,7 +1443,7 @@ class CPU:
         value = self.mem.read(address)
 
         newValue = (value >> 1) | (int(self.f.getCarry()) << 7)
-        self.f.setCarry(value & 1) #getBit(0)
+        self.f.setCarry(value & 1)
         self.mem.write(address, newValue)
         self.cycles += 4
         self.rotateBase()
@@ -1572,7 +1584,7 @@ class CPU:
 
     # Swap
     def swap_r(self, r):
-        self.setOpDesc("SWAP {}".format(r.getName()))
+        self.setOpDesc("SWAP", "{}".format(r.getName()))
         value = int(r)
         newValue = ((value & 0xF0) >> 4) & ((value & 0x0F) << 4)
         r.set(newValue)
@@ -1585,7 +1597,7 @@ class CPU:
         self.cycles += 2
 
     def swap_X(self):
-        self.setOpDesc("SWAP (HL)")
+        self.setOpDesc("SWAP", "(HL)")
         address = int(self.hl)
         value = self.mem.read(address)
         newValue = ((value & 0xF0) >> 4) & ((value & 0x0F) << 4)
