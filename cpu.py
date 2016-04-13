@@ -967,7 +967,6 @@ class CPU:
 
     # Calls
     def callBase(self, location):
-        print(hex(location))
         self.sp -= 1
         self.mem.write(int(self.sp), int(self.pc.r1))
         self.sp -= 1
@@ -1442,7 +1441,8 @@ class CPU:
         self.setOpDesc("SLA", r.getName())
         self.f.setCarry(r.getBit(7))
         r.set((int(r) << 1) & 0xFF)
-
+    
+        self.pc += 1
         self.cycles += 2
         self.f.setZero(int(r) == 0)
         self.f.setSubtract(False)
@@ -1456,6 +1456,7 @@ class CPU:
         value = (b << 1) & 0xFF
         self.mem.write(location, value)
 
+        self.pc += 1
         self.cycles += 4
         self.f.setZero(value == 0)
         self.f.setSubtract(False)
@@ -1466,6 +1467,7 @@ class CPU:
         self.f.setCarry(r.getBit(0))
         r.set((int(r) >> 1) | (int(r) & 0b10000000))
 
+        self.pc += 1
         self.cycles += 2
         self.f.setZero(int(r) == 0)
         self.f.setSubtract(False)
@@ -1479,6 +1481,7 @@ class CPU:
         value = (b >> 1) | (b & 0b10000000)
         self.mem.write(location, value)
 
+        self.pc += 1
         self.cycles += 4
         self.f.setZero(value == 0)
         self.f.setSubtract(False)
@@ -1489,6 +1492,7 @@ class CPU:
         self.f.setCarry(r.getBit(0))
         r.set(int(r) >> 1)
 
+        self.pc += 1
         self.cycles += 2
         self.f.setZero(int(r) == 0)
         self.f.setSubtract(False)
@@ -1502,6 +1506,7 @@ class CPU:
         value = b >> 1
         self.mem.write(location, value)
 
+        self.pc += 1
         self.cycles += 4
         self.f.setZero(value == 0)
         self.f.setSubtract(False)
@@ -1512,8 +1517,8 @@ class CPU:
         self.setOpDesc("SET", str(i), r.getName())
         r.setBit(i, True)
 
-        self.cycles += 2
         self.pc += 1
+        self.cycles += 2
 
     def set_iX(self, i, X):
         self.setOpDesc("SET", str(i), "({})".format(X.getName()))
@@ -1522,16 +1527,16 @@ class CPU:
         value |= (1 << i)
         self.mem.write(address, value)
 
-        self.cycles += 4
         self.pc += 1
+        self.cycles += 4
 
     # Reset Bit
     def res_ir(self, i, r):
         self.setOpDesc("RES", str(i), r.getName())
         r.setBit(i, False)
 
-        self.cycles += 2
         self.pc += 1
+        self.cycles += 2
 
     def res_iX(self, i, X):
         self.setOpDesc("RES", str(i), "({})".format(X.getName()))
@@ -1540,15 +1545,15 @@ class CPU:
         value &= ~(1 << i)
         self.mem.write(address, value)
 
-        self.cycles += 4
         self.pc += 1
+        self.cycles += 4
 
     # Get Bit
     def bit_ir(self, i, r):
         self.setOpDesc("BIT", str(i), r.getName())
 
-        self.cycles += 2
         self.pc += 1
+        self.cycles += 2
         self.f.setZero(r.getBit(i))
         self.f.setSubtract(0)
         self.f.setHalfCarry(1)
@@ -1559,8 +1564,8 @@ class CPU:
         value = self.mem.read(address)
         bit = bool(value & (1 << i))
 
-        self.cycles += 4
         self.pc += 1
+        self.cycles += 4
         self.f.setZero(bit)
         self.f.setSubtract(0)
         self.f.setHalfCarry(1)
@@ -1576,8 +1581,8 @@ class CPU:
         self.f.setSubtract(0)
         self.f.setHalfCarry(0)
         self.f.setCarry(0)
-        self.cycles += 2
         self.pc += 1
+        self.cycles += 2
 
     def swap_X(self):
         self.setOpDesc("SWAP (HL)")
@@ -1590,8 +1595,8 @@ class CPU:
         self.f.setSubtract(0)
         self.f.setHalfCarry(0)
         self.f.setCarry(0)
-        self.cycles += 4
         self.pc += 1
+        self.cycles += 4
 
 if __name__ == "__main__":
     import doctest
