@@ -264,10 +264,7 @@ class Memory:
 
     def writeToMBC1(self, location, value):
         if location < 0x2000: # Enable ram
-            if (value & 0x0F) == 0x0A:
-                self.enable_cart_ram = True
-            else:
-                self.enable_cart_ram = False
+            self.enable_cart_ram = (value & 0x0F) == 0x0A
 
         elif location < 0x4000: # ROM bank lower bits
             bit_mask = 0b00011111
@@ -286,16 +283,17 @@ class Memory:
                 self.ram_bank = (self.ram_bank & ~bit_mask) | bits
 
         elif location < 0x8000: # ROM/RAM mode select
-            if value == 0:
-                self.rom_banking_mode = True
-            elif value == 1:
-                self.rom_banking_mode = False
-            else:
-                assert(False)
-
+            bit = bool(value & 1)
+            self.rom_banking_mode = not bit
 
     def writeToMBC2(self, location, value):
-        assert(False)
+        if location < 0x2000: # Enable ram
+            if location & 0b0000000100000000 == 0:
+                self.enable_cart_ram = (location & 0x0F) == 0x0A
+
+        elif location < 0x4000: # ROM bank lower bits
+            if location & 0b0000000100000000:
+                self.rom_bank = value & 0x0F
 
     def writeToMBC3(self, location, value):
         assert(False)
