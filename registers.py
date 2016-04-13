@@ -1,11 +1,11 @@
 class RegisterByte:
     def __init__(self, value, name="Nameless"):
-        assert(value <= 0xFF)
+        assert(value < 0x100)
         self.value = int(value)
         self.name = name
 
     def set(self, value):
-        assert(value <= 0xFF)
+        assert(value < 0x100)
         self.value = int(value) 
 
     def getName(self):
@@ -90,8 +90,8 @@ class RegisterByte:
 
 class RegisterFlag(RegisterByte):
     def set(self, value):
-        assert(value < 0xFF)
-        self.value = int(value) & 0xFFFF0000 # The lowest four bits should always read zero
+        assert(value < 0x100)
+        self.value = int(value) & 0xF0 # The lowest four bits should always read zero
 
     def setZero(self, value):
         self.setBit(7, value)
@@ -165,7 +165,7 @@ class RegisterWord:
         return self
 
     def __int__(self):
-        return (int(self.r1) << 8) + int(self.r2)
+        return (int(self.r1) << 8) | int(self.r2)
 
     def __eq__(self, value):
         return int(self) == value
