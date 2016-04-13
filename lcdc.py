@@ -64,7 +64,7 @@ class LCDC:
         self.screen = pygame.Surface((160, 144),)
         self.display = pygame.display.set_mode((160 * 4, 144 * 4))
         pygame.display.set_caption("GAMETOY")
-        self.emu_pallete = [
+        self.emu_palette = [
             [224, 248, 208],
             [136, 192, 112],
             [ 48, 104,  80],
@@ -74,7 +74,7 @@ class LCDC:
     def render(self):
         self.tiles = {}
         if self.display_enable:
-            self.screen.fill((255, 0, 255)) # self.screen.fill(self.emu_pallete[0])
+            self.screen.fill((255, 0, 255)) # self.screen.fill(self.emu_palette[0])
             if self.sprite_display_enable:
                 self.renderSprites()
             if self.bg_display_enable:
@@ -124,9 +124,19 @@ class LCDC:
                 low_bit = int(bool(low_byte & mask))
                 high_bit = int(bool(high_byte & mask))
                 color = (high_bit << 1) | low_bit
-                tile.set_at((y, x), self.emu_pallete[color])
+                tile.set_at((y, 7 - x), self.getScreenColor(color))
                 self.tiles[address] = tile
         return tile
+
+    def getScreenColor(self, color):
+        if color == 0:
+            return self.emu_palette[self.bgp_color0]
+        elif color == 1:
+            return self.emu_palette[self.bgp_color1]
+        elif color == 2:
+            return self.emu_palette[self.bgp_color2]
+        elif color == 3:
+            return self.emu_palette[self.bgp_color3]
 
     def update(self, cycles):
         self.mode_counter += cycles
@@ -255,7 +265,7 @@ class LCDC:
     def writeWX(self, value):
         self.wx = value
 
-    # Background pallete data
+    # Background palette data
     def readBGP(self):
         value =  self.bgp_color3 << 6
         value |= self.bgp_color2 << 4
@@ -265,11 +275,12 @@ class LCDC:
 
     def writeBGP(self, value):
         self.bgp_color3 =  value >> 6
-        self.bgp_color2 = (value >> 4) & 0x11
-        self.bgp_color1 = (value >> 2) & 0x11
-        self.bgp_color0 =  value       & 0x11
+        self.bgp_color2 = (value >> 4) & 0b11
+        self.bgp_color1 = (value >> 2) & 0b11
+        self.bgp_color0 =  value       & 0b11
+        print(self.bgp_color0)
 
-    # Object pallete 0 data
+    # Object palette 0 data
     def readOBP0(self):
         value =  self.obp0_color3 << 6
         value |= self.obp0_color2 << 4
@@ -278,10 +289,10 @@ class LCDC:
 
     def writeOBP0(self, value):
         self.obp0_color3 =  value >> 6
-        self.obp0_color2 = (value >> 4) & 0x11
-        self.obp0_color1 = (value >> 2) & 0x11
+        self.obp0_color2 = (value >> 4) & 0b11
+        self.obp0_color1 = (value >> 2) & 0b11
 
-    # Object pallete 1 data
+    # Object palette 1 data
     def readOBP1(self):
         value =  self.obp1_color3 << 6
         value |= self.obp1_color2 << 4
@@ -290,8 +301,8 @@ class LCDC:
 
     def writeOBP1(self, value):
         self.obp1_color3 =  value >> 6
-        self.obp1_color2 = (value >> 4) & 0x11
-        self.obp1_color1 = (value >> 2) & 0x11
+        self.obp1_color2 = (value >> 4) & 0b11
+        self.obp1_color1 = (value >> 2) & 0b11
 
     def writeOAM_DMA(self, value):
         assert(value >= 0 and value < 0xF1)
