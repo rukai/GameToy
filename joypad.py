@@ -14,44 +14,44 @@ class Joypad:
         self.left   = 1
         self.right  = 1
 
+    def keyEvent(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_DOWN:
+                self.down = 0
+            if event.key == pygame.K_UP:
+                self.up = 0
+            if event.key == pygame.K_LEFT:
+                self.left = 0
+            if event.key == pygame.K_RIGHT:
+                self.right = 0
+            if event.key == pygame.K_a:
+                self.start = 0
+            if event.key == pygame.K_s:
+                self.select = 0
+            if event.key == pygame.K_x:
+                self.b = 0
+            if event.key == pygame.K_z:
+                self.a = 0
+
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_DOWN:
+                self.down = 1
+            if event.key == pygame.K_UP:
+                self.up = 1
+            if event.key == pygame.K_LEFT:
+                self.left = 1
+            if event.key == pygame.K_RIGHT:
+                self.right = 1
+            if event.key == pygame.K_a:
+                self.start = 1
+            if event.key == pygame.K_s:
+                self.select = 1
+            if event.key == pygame.K_x:
+                self.b = 1
+            if event.key == pygame.K_z:
+                self.a = 1
+
     def readJOYP(self):
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_DOWN:
-                    self.down = 0
-                if event.key == pygame.K_UP:
-                    self.up = 0
-                if event.key == pygame.K_LEFT:
-                    self.left = 0
-                if event.key == pygame.K_RIGHT:
-                    self.right = 0
-                if event.key == pygame.K_a:
-                    self.start = 0
-                if event.key == pygame.K_s:
-                    self.select = 0
-                if event.key == pygame.K_x:
-                    self.b = 0
-                if event.key == pygame.K_z:
-                    self.a = 0
-
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_DOWN:
-                    self.down = 1
-                if event.key == pygame.K_UP:
-                    self.up = 1
-                if event.key == pygame.K_LEFT:
-                    self.left = 1
-                if event.key == pygame.K_RIGHT:
-                    self.right = 1
-                if event.key == pygame.K_a:
-                    self.start = 1
-                if event.key == pygame.K_s:
-                    self.select = 1
-                if event.key == pygame.K_x:
-                    self.b = 1
-                if event.key == pygame.K_z:
-                    self.a = 1
-
         value =  int(self.disable_buttons)    << 5
         value |= int(self.disable_directions) << 4
 

@@ -53,6 +53,12 @@ def run(path, debug, max_cycles):
         try:
             pygame.init()
             while cpu.run_state != "QUIT":
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        cpu.run_state = "QUIT"
+                    if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+                        joypad.keyEvent(event)
+
                 interrupts.update()
                 if cpu.run_state == "RUN":
                     cpu.run()
