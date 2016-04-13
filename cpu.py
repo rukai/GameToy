@@ -967,11 +967,13 @@ class CPU:
 
     # Calls
     def callBase(self, location):
+        print(hex(location))
         self.sp -= 1
         self.mem.write(int(self.sp), int(self.pc.r1))
         self.sp -= 1
         self.mem.write(int(self.sp), int(self.pc.r2))
         self.pc.set(location)
+        self.run_state = "RUN"
 
     def call_w(self):
         w = self.getImmediateWord()
@@ -1256,7 +1258,7 @@ class CPU:
         self.pc += 1
         self.cycles += 2
 
-    #DEC
+    # DEC
     def dec_r(self, r):
         self.setOpDesc("DEC", r.getName())
         newValue = (int(r) - 1) % 0x100
@@ -1283,7 +1285,7 @@ class CPU:
         self.pc += 1
         self.cycles += 2
 
-    #Misc ALU
+    # Misc ALU
     def daa(self):
         self.setOpDesc("DAA")
 

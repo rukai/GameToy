@@ -129,39 +129,44 @@ class LCDC:
                 self.mode_counter = 0
                 self.ly += 1
                 if self.ly == 144: #Reached end of screen
-                    self.mode = 1
+                    self.updateInterrupts(1)
                 else:
-                    self.mode = 2
+                    self.updateInterrupts(2)
         elif self.mode == 1:
             if self.mode_counter >= 4560:
                 self.mode_counter = 0
                 self.mode = 2
+                self.updateInterrupts(2)
                 self.ly = 0
             if self.mode_counter % 456 == 0 and self.mode_counter != 0:
                 self.ly += 1
         elif self.mode == 2:
             if self.mode_counter >= 80:
                 self.mode_counter = 0
-                self.mode = 3
+                self.updateInterrupts(3)
         elif self.mode == 3:
             if self.mode_counter >= 172:
                 self.mode_counter = 0
-                self.mode = 0
+                self.updateInterrupts(0)
                 self.render()
         else:
             assert(False)
 
-        self.updateInterrupts()
+    def updateInterrupts(self, mode):
+        self.mode = mode
 
-    def updateInterrupts(self):
+        if self.mode == 1:
+            self.interrupts.callVBlank()
+            return
+
         lyc_interrupt = (self.ly == self.lyc) and self.enable_lyc_interrupt
         oam_interrupt = self.mode == 2 and self.enable_oam_interrupt
         hblank_interrupt = self.mode == 0 and self.enable_hblank_interrupt
+        stat_vblank_interrupt = self.mode == 1 and self.enable_vblank_interrupt
 
-        if lyc_interrupt or lyc_interrupt or oam_interrupt or hblank_interrupt:
+        if lyc_interrupt or lyc_interrupt or oam_interrupt or hblank_interrupt or stat_vblank_interrupt:
             self.interrupts.callLCDC()
-        elif self.mode == 1 and self.enable_vblank_interrupt:
-            self.interrupts.callVBlank()
+            return
 
     # LCD Control
     def readLCDC(self):
