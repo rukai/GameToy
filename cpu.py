@@ -39,7 +39,7 @@ class CPU:
             0xFB:         self.ei,
 
             # Loads
-            0x08: lambda: self.ld_Wx,
+            0x08:         self.ld_Wx,
 
             0x7F: lambda: self.ld_rr(self.a, self.a),
             0x78: lambda: self.ld_rr(self.a, self.b),
@@ -920,7 +920,7 @@ class CPU:
         new_value = value % 0x100
         self.f.setZero(new_value == 0)
         self.f.setSubtract(True)
-        self.f.setHalfCarry(bool(new_value & 0x00010000)) #TODO: VERIFY
+        self.f.setHalfCarry(bool(new_value & 0b00010000)) #TODO: VERIFY
         self.f.setCarry(value != new_value)
 
     def cp_r(self, r):
@@ -1305,9 +1305,9 @@ class CPU:
             addend *= -1
 
         value = int(self.a)
-        if (value & 0x0000FFFF) > 9 or self.f.getHalfCarry():
+        if (value & 0x00FF) > 9 or self.f.getHalfCarry():
             value += addend
-        if ((value & 0xFFFF0000) >> 4) > 9 or self.f.getCarry():
+        if ((value & 0xFF00) >> 4) > 9 or self.f.getCarry():
             value += addend * 10
 
         modValue = value % 0x100
