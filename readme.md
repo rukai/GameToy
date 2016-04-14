@@ -1,7 +1,7 @@
 # GAMETOY
 
 A toy gameboy emulator written in python3.
-There are already countless gameboy emulators available, this a project to help me learn about emulation.
+There are already countless gameboy emulators available, this is a project to help me learn about emulation.
 
 ## Requirements
 
