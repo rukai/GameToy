@@ -218,6 +218,8 @@ class Memory:
         return value
 
     def write(self, location, value):
+        assert(value < 0x100)
+
         if location < 0x8000:
             self.writeToROM(location, value)
 

@@ -773,7 +773,7 @@ class CPU:
         self.setOpDesc("LD", "({})".format(asmHex(W)), "SP")
         value = int(self.sp)
         self.mem.write(W, value & 0xFF)
-        self.mem.write(W + 1, value & 0xFF00)
+        self.mem.write(W + 1, (value >> 8) & 0xFF)
 
         self.pc += 3
         self.cycles += 5
@@ -1353,8 +1353,8 @@ class CPU:
         self.rotateBase()
 
     def rla(self):
-        self.setOpDesc("RRA")
-        newValue = (int(self.a) << 1) | int(self.f.getCarry())
+        self.setOpDesc("RLA")
+        newValue = ((int(self.a) << 1) | int(self.f.getCarry())) & 0xFF
         self.f.setCarry(self.a.getBit(7))
         self.a.set(newValue)
         self.cycles += 1
@@ -1371,7 +1371,7 @@ class CPU:
     def rlc_r(self, r):
         self.setOpDesc("RLC", r.getName())
         carry = r.getBit(7)
-        newValue = (int(r) << 1) | int(carry)
+        newValue = (int(r) << 1) | int(carry) & 0xFF
         self.f.setCarry(carry)
         r.set(newValue)
         self.cycles += 2
@@ -1388,7 +1388,7 @@ class CPU:
 
     def rl_r(self, r):
         self.setOpDesc("RL", r.getName())
-        newValue = (int(r) << 1) | int(self.f.getCarry())
+        newValue = ((int(r) << 1) | int(self.f.getCarry())) & 0xFF
         self.f.setCarry(r.getBit(7))
         r.set(newValue)
         self.cycles += 2
@@ -1408,7 +1408,7 @@ class CPU:
         value = self.mem.read(address)
 
         carry = (value & 0b10000000) >> 7
-        newValue = (value << 1) | int(carry)
+        newValue = ((value << 1) | int(carry)) & 0xFF
         self.f.setCarry(carry)
         self.mem.write(address, value)
         self.cycles += 4
@@ -1431,7 +1431,7 @@ class CPU:
         address = int(X)
         value = self.mem.read(address)
 
-        newValue = (value << 1) | int(self.f.getCarry())
+        newValue = ((value << 1) | int(self.f.getCarry())) & 0xFF
         self.f.setCarry((value & 0b10000000) >> 7)
         self.mem.write(address, newValue)
         self.cycles += 4
