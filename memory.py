@@ -233,8 +233,6 @@ class Memory:
                 if self.header.mbc == "MBC2":
                     value &= 0x0F
                 self.external_ram[location - 0xA000 + bank_offset] = value
-            else:
-                return 0
 
         elif location < 0xE000:
             self.internal_ram[location - 0xC000] = value
@@ -243,7 +241,7 @@ class Memory:
             self.internal_ram[location - 0xE000] = value
 
         elif location < 0xFEA0:
-            self.oam[location - 0xFE00]
+            self.oam[location - 0xFE00] = value
 
         elif location < 0xFF00:
             pass

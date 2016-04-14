@@ -61,7 +61,7 @@ class LCDC:
         self.obp1_color3 = 0
     
         self.tiles = {}
-        self.screen = pygame.Surface((160, 144),)
+        self.screen = pygame.Surface((160, 144), pygame.SRCALPHA)
         self.display = pygame.display.set_mode((160 * 4, 144 * 4))
         pygame.display.set_caption("GAMETOY")
         self.emu_palette = [
@@ -75,12 +75,15 @@ class LCDC:
         self.tiles = {}
         if self.display_enable:
             self.screen.fill((255, 0, 255)) # self.screen.fill(self.emu_palette[0])
-            if self.sprite_display_enable:
-                self.renderSprites()
             if self.bg_display_enable:
                 self.renderBG()
+                self.tiles = {}
             if self.w_display_enable:
                 self.renderW()
+                self.tiles = {}
+            if self.sprite_display_enable:
+                self.renderSprites()
+                self.tiles = {}
         else:
             self.screen.fill((255, 0, 0)) # TODO: remove debug color
         upscaled = pygame.transform.scale(self.screen, (self.screen.get_width() * 4, self.screen.get_height() * 4),)
@@ -88,7 +91,37 @@ class LCDC:
         pygame.display.flip()
 
     def renderSprites(self):
-        tile_width = 16 if self.sprite_size else 8
+        for i in range(40):
+            address = 0xFE00 + i * 4
+            y_pos      = self.mem.read(address) - 16
+            x_pos      = self.mem.read(address + 1) - 8
+            tile_index = self.mem.read(address + 2)
+            flags      = self.mem.read(address + 3)
+
+            above_BG = bool(flags & 0b10000000)
+            y_flip   = bool(flags & 0b01000000)
+            x_flip   = bool(flags & 0b00100000)
+            palette  = bool(flags & 0b00010000)
+
+            getColor = self.getOBP1Color if palette else self.getOBP0Color
+
+            if self.sprite_size: # 8x16
+                tile0_address = 0x8000 + (tile_index & 0b11111110) * 16
+                tile1_address = 0x8000 + (tile_index | 0b00000001) * 16
+
+                tile0 = self.renderTile(tile0_address, getColor)
+                tile1 = self.renderTile(tile1_address, getColor)
+                tile0 = pygame.transform.flip(tile0, x_flip, y_flip)
+                tile1 = pygame.transform.flip(tile1, x_flip, y_flip)
+                self.screen.blit(tile0, (x_pos, y_pos))
+                self.screen.blit(tile1, (x_pos, y_pos+8))
+
+            else: # 8x8
+                tile_address = 0x8000 + tile_index * 16
+
+                tile = self.renderTile(tile_address, getColor)
+                tile = pygame.transform.flip(tile, x_flip, y_flip)
+                self.screen.blit(tile, (x_pos, y_pos))
 
     def renderBG(self):
         if self.bg_tile_map_select:
@@ -108,8 +141,8 @@ class LCDC:
                 x_address = (x-1) + self.scx // 8
                 y_address = ((y-1) + self.scy // 8) * 32
                 address = start_address + (x_address + y_address) % 1024
-                tile_address = tile_start_address + read(address)
-                tile = self.renderTile(tile_address)
+                tile_address = tile_start_address + read(address) * 16
+                tile = self.renderTile(tile_address, self.getBGColor)
                 x_pos = (x-1) * 8 + (self.scx % 8)
                 y_pos = (y-1) * 8 + (self.scy % 8)
                 self.screen.blit(tile, (x_pos, y_pos))
@@ -132,17 +165,17 @@ class LCDC:
                 x_address = x + self.scx // 8
                 y_address = (y + self.scy // 8) * 32
                 address = start_address + (x_address + y_address) % 1024
-                tile_address = tile_start_address + read(address)
-                tile = self.renderTile(tile_address)
-                x_pos = x * 8 + self.wx -7
+                tile_address = tile_start_address + read(address) * 16
+                tile = self.renderTile(tile_address, self.getBGColor)
+                x_pos = x * 8 + self.wx - 7
                 y_pos = y * 8 + self.wy
                 self.screen.blit(tile, (x_pos, y_pos))
 
-    def renderTile(self, address):
+    def renderTile(self, address, getColor):
         if address in self.tiles:
             return self.tiles[address]
 
-        tile = pygame.Surface((8, 8))
+        tile = pygame.Surface((8, 8), pygame.SRCALPHA)
         for y in range(8):
             address_y = address + y * 2
             low_byte  = self.mem.read(address_y)
@@ -152,11 +185,11 @@ class LCDC:
                 low_bit = int(bool(low_byte & mask))
                 high_bit = int(bool(high_byte & mask))
                 color = (high_bit << 1) | low_bit
-                tile.set_at((y, 7 - x), self.getScreenColor(color))
+                tile.set_at((7 - x, y), getColor(color))
                 self.tiles[address] = tile
         return tile
 
-    def getScreenColor(self, color):
+    def getBGColor(self, color):
         if color == 0:
             return self.emu_palette[self.bgp_color0]
         elif color == 1:
@@ -165,6 +198,26 @@ class LCDC:
             return self.emu_palette[self.bgp_color2]
         elif color == 3:
             return self.emu_palette[self.bgp_color3]
+
+    def getOBP0Color(self, color):
+        if color == 0:
+            return (0, 0, 0, 0)
+        elif color == 1:
+            return self.emu_palette[self.obp0_color1]
+        elif color == 2:
+            return self.emu_palette[self.obp0_color2]
+        elif color == 3:
+            return self.emu_palette[self.obp0_color3]
+
+    def getOBP1Color(self, color):
+        if color == 0:
+            return (0, 0, 0, 0)
+        elif color == 1:
+            return self.emu_palette[self.obp1_color1]
+        elif color == 2:
+            return self.emu_palette[self.obp1_color2]
+        elif color == 3:
+            return self.emu_palette[self.obp1_color3]
 
     def update(self, cycles):
         self.mode_counter += cycles
