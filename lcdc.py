@@ -93,12 +93,12 @@ class LCDC:
     def renderSprites(self):
         for i in range(40):
             address = 0xFE00 + i * 4
-            y_pos      = self.mem.read(address) - 16
+            y_pos      = self.mem.read(address)     - 16
             x_pos      = self.mem.read(address + 1) - 8
             tile_index = self.mem.read(address + 2)
             flags      = self.mem.read(address + 3)
 
-            above_BG = bool(flags & 0b10000000)
+            below_BG = bool(flags & 0b10000000)
             y_flip   = bool(flags & 0b01000000)
             x_flip   = bool(flags & 0b00100000)
             palette  = bool(flags & 0b00010000)
@@ -113,15 +113,34 @@ class LCDC:
                 tile1 = self.renderTile(tile1_address, getColor)
                 tile0 = pygame.transform.flip(tile0, x_flip, y_flip)
                 tile1 = pygame.transform.flip(tile1, x_flip, y_flip)
-                self.screen.blit(tile0, (x_pos, y_pos))
-                self.screen.blit(tile1, (x_pos, y_pos+8))
+                self.blitSprite(tile0, x_pos, y_pos, below_BG)
+                self.blitSprite(tile1, x_pos, y_pos+8, below_BG)
 
             else: # 8x8
                 tile_address = 0x8000 + tile_index * 16
 
                 tile = self.renderTile(tile_address, getColor)
                 tile = pygame.transform.flip(tile, x_flip, y_flip)
-                self.screen.blit(tile, (x_pos, y_pos))
+                self.blitSprite(tile, x_pos, y_pos, below_BG)
+
+    def blitSprite(self, tile, sprite_x, sprite_y, below_BG):
+        if below_BG and self.bg_display_enable:
+            for x in range(8):
+                for y in range(8):
+                    screen_location = (sprite_x + x, sprite_y + y)
+                    if screen_location[0] >= 160:
+                        return
+                    if screen_location[1] >= 144:
+                        break;
+                    if screen_location[0] <= 0 or screen_location[1] <= 0:
+                        continue;
+
+                    print(screen_location)
+                    if self.screen.get_at(screen_location) == 0:
+                        color = tile.get_at(x, y)
+                        self.screen.set_at(screen_location, color)
+        else:
+            self.screen.blit(tile, (sprite_x, sprite_y))
 
     def renderBG(self):
         if self.bg_tile_map_select:
