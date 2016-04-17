@@ -4,6 +4,7 @@ import os
 import sys
 import traceback
 import pygame
+import cProfile
 
 from cpu import CPU
 from header import Header
@@ -19,9 +20,11 @@ help = """
 Usage: gametoy rompath [debug mode] [max cycles]
 
 [debug modes]: display debug info
-    values: NONE, INSTRUCTIONS, REGISTERS, HEADER, TITLE, MEMORY, ALL
+    values: NONE, INSTRUCTIONS, REGISTERS, HEADER, TITLE, MEMORY, PROFILE, ALL
 [max cycles]: emulates this many cycles before exiting
     values: integer >= 0
+
+ALL enables every debug mode except PROFILE.
 """
 
 def run(path, debug, max_cycles):
@@ -100,4 +103,7 @@ def main():
         print(help)
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 2 and sys.argv[2] == "PROFILE":
+        cProfile.run('main()')
+    else:
+        main()
